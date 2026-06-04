@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+
+    .month-nav { display: flex; align-items: center; gap: 0.75rem; }
+    .month-nav button {
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .month-nav button:hover { background: rgba(255,255,255,0.28); }
+    .month-nav span { font-size: 1rem; font-weight: 500; min-width: 150px; text-align: center; }
+
+    main { max-width: 1100px; margin: 2rem auto; padding: 0 1.25rem; }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    }
+    .card .label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-bottom: 0.4rem;
+    }
+    .card .amount { font-size: 1.9rem; font-weight: 700; }
+    .card.income .amount { color: #10b981; }
+    .card.expenses .amount { color: #ef4444; }
+    .card.balance .amount { color: #3b82f6; }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.25rem;
+      align-items: start;
+    }
+    .left-col { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .panel {
+      background: white;
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    }
+    .panel h2 { font-size: 0.9rem; font-weight: 600; color: #555; margin-bottom: 1rem; }
+
+    .chart-wrap { position: relative; height: 260px; }
+    .empty-note { text-align: center; color: #bbb; padding: 3.5rem 0; font-size: 0.88rem; }
+
+    .tx-list { list-style: none; }
+    .tx-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid #f3f3f3;
+    }
+    .tx-item:last-child { border-bottom: none; }
+    .tx-icon {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .tx-info { flex: 1; min-width: 0; }
+    .tx-info .desc { font-weight: 500; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tx-info .meta { font-size: 0.73rem; color: #aaa; margin-top: 2px; }
+    .tx-amount { font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+    .tx-amount.income { color: #10b981; }
+    .tx-amount.expense { color: #ef4444; }
+    .tx-del {
+      background: none; border: none; color: #d1d5db;
+      cursor: pointer; font-size: 1.1rem; padding: 3px 5px;
+      border-radius: 5px; flex-shrink: 0; line-height: 1;
+    }
+    .tx-del:hover { color: #ef4444; background: #fef2f2; }
+
+    /* Form */
+    .type-toggle {
+      display: flex;
+      background: #f3f4f6;
+      border-radius: 9px;
+      padding: 3px;
+      margin-bottom: 1rem;
+    }
+    .type-toggle button {
+      flex: 1; padding: 0.45rem;
+      border: none; background: none;
+      border-radius: 7px; cursor: pointer;
+      font-size: 0.84rem; font-weight: 500; color: #777;
+      transition: all 0.15s;
+    }
+    .type-toggle button.active {
+      background: white;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.13);
+      color: #1a1a2e;
+    }
+    .type-toggle button.active.expense-btn { color: #ef4444; }
+    .type-toggle button.active.income-btn  { color: #10b981; }
+
+    .form-group { margin-bottom: 0.7rem; }
+    .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: #666; margin-bottom: 0.3rem; }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.15s;
+      background: white;
+      color: #1a1a2e;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: #3b82f6; }
+
+    .add-btn {
+      width: 100%; padding: 0.7rem;
+      background: #1a1a2e; color: white;
+      border: none; border-radius: 9px;
+      font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; margin-top: 0.4rem;
+      transition: background 0.15s;
+    }
+    .add-btn:hover { background: #2e2e50; }
+
+    @media (max-width: 760px) {
+      .summary-cards { grid-template-columns: 1fr; }
+      .content-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Budget Tracker</h1>
+  <div class="month-nav">
+    <button id="prevBtn">&#8249;</button>
+    <span id="monthLabel"></span>
+    <button id="nextBtn">&#8250;</button>
+  </div>
+</header>
+
+<main>
+  <div class="summary-cards">
+    <div class="card income">
+      <div class="label">Income</div>
+      <div class="amount" id="sumIncome">$0.00</div>
+    </div>
+    <div class="card expenses">
+      <div class="label">Expenses</div>
+      <div class="amount" id="sumExpenses">$0.00</div>
+    </div>
+    <div class="card balance">
+      <div class="label">Balance</div>
+      <div class="amount" id="sumBalance">$0.00</div>
+    </div>
+  </div>
+
+  <div class="content-grid">
+    <div class="left-col">
+      <div class="panel">
+        <h2>Spending by Category</h2>
+        <div id="chartWrap" class="chart-wrap">
+          <canvas id="myChart"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Transactions</h2>
+        <ul id="txList" class="tx-list"></ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Add Transaction</h2>
+      <div class="type-toggle">
+        <button id="expenseBtn" class="active expense-btn" onclick="setType('expense')">Expense</button>
+        <button id="incomeBtn" class="income-btn" onclick="setType('income')">Income</button>
+      </div>
+      <form id="txForm">
+        <div class="form-group">
+          <label>Description</label>
+          <input id="fDesc" type="text" placeholder="e.g. Groceries" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input id="fAmount" type="number" placeholder="0.00" step="0.01" min="0.01" required>
+        </div>
+        <div class="form-group" id="catGroup">
+          <label>Category</label>
+          <select id="fCat">
+            <option value="Food">Food &amp; Dining</option>
+            <option value="Transport">Transport</option>
+            <option value="Housing">Housing</option>
+            <option value="Utilities">Utilities</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Health">Health</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input id="fDate" type="date" required>
+        </div>
+        <button type="submit" class="add-btn">Add Transaction</button>
+      </form>
+    </div>
+  </div>
+</main>
+
+<script>
+  const KEY = 'budget_tx';
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const CAT_COLORS = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#6b7280'];
+  const CAT_ICONS  = { Food:'🍔', Transport:'🚗', Housing:'🏠', Utilities:'💡',
+                       Entertainment:'🎬', Health:'💊', Shopping:'🛍️', Other:'📦', Income:'💰' };
+
+  let viewYear  = new Date().getFullYear();
+  let viewMonth = new Date().getMonth();
+  let txType    = 'expense';
+  let chartInst = null;
+
+  // --- Storage ---
+  const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
+  const save = arr => localStorage.setItem(KEY, JSON.stringify(arr));
+
+  function deleteById(id) {
+    save(load().filter(t => t.id !== id));
+    render();
+  }
+
+  // --- Helpers ---
+  function fmt(n) {
+    return '$' + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function monthTx() {
+    return load().filter(t => {
+      const d = new Date(t.date + 'T00:00:00');
+      return d.getFullYear() === viewYear && d.getMonth() === viewMonth;
+    });
+  }
+
+  // --- Type toggle ---
+  function setType(type) {
+    txType = type;
+    document.getElementById('expenseBtn').className = type === 'expense' ? 'active expense-btn' : 'expense-btn';
+    document.getElementById('incomeBtn').className  = type === 'income'  ? 'active income-btn'  : 'income-btn';
+    document.getElementById('catGroup').style.display = type === 'expense' ? '' : 'none';
+  }
+
+  // --- Render ---
+  function render() {
+    const txs     = monthTx();
+    const income  = txs.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
+    const expenses = txs.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+    const balance  = income - expenses;
+
+    document.getElementById('sumIncome').textContent   = fmt(income);
+    document.getElementById('sumExpenses').textContent = fmt(expenses);
+    const balEl = document.getElementById('sumBalance');
+    balEl.textContent = (balance < 0 ? '-' : '') + fmt(balance);
+
+    renderChart(txs);
+    renderList(txs);
+  }
+
+  function renderChart(txs) {
+    const exps = txs.filter(t => t.type === 'expense');
+    const wrap = document.getElementById('chartWrap');
+
+    if (exps.length === 0) {
+      if (chartInst) { chartInst.destroy(); chartInst = null; }
+      wrap.innerHTML = '<p class="empty-note">No expenses to chart this month</p>';
+      return;
+    }
+
+    if (!document.getElementById('myChart')) {
+      wrap.innerHTML = '<canvas id="myChart"></canvas>';
+    }
+
+    const byCat = {};
+    exps.forEach(t => { byCat[t.category] = (byCat[t.category] || 0) + t.amount; });
+    const labels = Object.keys(byCat);
+    const data   = labels.map(l => byCat[l]);
+    const colors = CAT_COLORS.slice(0, labels.length);
+
+    if (chartInst) {
+      chartInst.data.labels = labels;
+      chartInst.data.datasets[0].data = data;
+      chartInst.data.datasets[0].backgroundColor = colors;
+      chartInst.update();
+      return;
+    }
+
+    const ctx = document.getElementById('myChart').getContext('2d');
+    chartInst = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 14, font: { size: 12 } } },
+          tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.raw)}` } }
+        }
+      }
+    });
+  }
+
+  function renderList(txs) {
+    const list = document.getElementById('txList');
+    if (txs.length === 0) {
+      list.innerHTML = '<li class="empty-note">No transactions this month</li>';
+      return;
+    }
+    const sorted = [...txs].sort((a,b) => new Date(b.date) - new Date(a.date));
+    list.innerHTML = sorted.map(t => {
+      const icon = t.type === 'income' ? CAT_ICONS.Income : (CAT_ICONS[t.category] || '📦');
+      const bg   = t.type === 'income' ? '#d1fae5' : '#fef2f2';
+      const d    = new Date(t.date + 'T00:00:00');
+      const ds   = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const cat  = t.type === 'income' ? 'Income' : t.category;
+      const sign = t.type === 'income' ? '+' : '−';
+      return `
+        <li class="tx-item">
+          <div class="tx-icon" style="background:${bg}">${icon}</div>
+          <div class="tx-info">
+            <div class="desc">${esc(t.description)}</div>
+            <div class="meta">${esc(cat)} · ${ds}</div>
+          </div>
+          <span class="tx-amount ${t.type}">${sign}${fmt(t.amount)}</span>
+          <button class="tx-del" onclick="deleteById(${t.id})" title="Delete">×</button>
+        </li>`;
+    }).join('');
+  }
+
+  // --- Month nav ---
+  function changeMonth(delta) {
+    viewMonth += delta;
+    if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
+    if (viewMonth > 11) { viewMonth = 0;  viewYear++; }
+    if (chartInst) { chartInst.destroy(); chartInst = null; }
+    document.getElementById('monthLabel').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+    render();
+  }
+  document.getElementById('prevBtn').onclick = () => changeMonth(-1);
+  document.getElementById('nextBtn').onclick = () => changeMonth(+1);
+
+  // --- Form submit ---
+  document.getElementById('txForm').onsubmit = e => {
+    e.preventDefault();
+    const desc   = document.getElementById('fDesc').value.trim();
+    const amount = parseFloat(document.getElementById('fAmount').value);
+    const cat    = txType === 'expense' ? document.getElementById('fCat').value : 'Income';
+    const date   = document.getElementById('fDate').value;
+    if (!desc || !amount || !date) return;
+
+    const all = load();
+    all.push({ id: Date.now(), description: desc, amount, type: txType, category: cat, date });
+    save(all);
+    e.target.reset();
+    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+    setType(txType);
+    render();
+  };
+
+  // --- Init ---
+  document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('monthLabel').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+  setType('expense');
+  render();
+</script>
+</body>
+</html>
