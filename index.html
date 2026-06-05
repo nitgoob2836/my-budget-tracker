@@ -9,7 +9,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --green: #10b981; --red: #ef4444; --blue: #3b82f6;
+      --green: #10b981; --red: #ef4444; --blue: #3b82f6; --purple: #6366f1;
       --dark: #1a1a2e; --bg: #f0f2f5; --card: #ffffff;
       --border: #e5e7eb; --text: #1a1a2e;
       --muted: #6b7280; --light: #9ca3af;
@@ -153,6 +153,9 @@
     .tx-type-btn.inc.on { background: var(--green); color: white; }
     .tx-type-btn.exp { border-color: var(--red); color: var(--red); }
     .tx-type-btn.exp.on { background: var(--red); color: white; }
+    .tx-type-btn.ret { border-color: var(--purple); color: var(--purple); }
+    .tx-type-btn.ret.on { background: var(--purple); color: white; }
+    .c-purple { color: var(--purple); }
     .tx-del {
       background: none; border: none; color: #d1d5db;
       cursor: pointer; font-size: 1rem; padding: 2px 5px; border-radius: 4px; flex-shrink: 0;
@@ -668,12 +671,13 @@
   // ── Render ──
   function render() {
     const txs      = yearTx();
-    const income   = txs.filter(t => t.type === 'income').reduce((s,t)  => s + t.amount, 0);
+    const income   = txs.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
     const expenses = txs.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
-    const net      = income - expenses;
+    const returns  = txs.filter(t => t.type === 'return').reduce((s,t) => s + t.amount, 0);
+    const net      = income - expenses + returns;
 
     document.getElementById('sumIncome').textContent   = fmt(income);
-    document.getElementById('sumExpenses').textContent = fmt(expenses);
+    document.getElementById('sumExpenses').textContent = fmt(Math.max(0, expenses - returns));
     const netEl = document.getElementById('sumNet');
     netEl.textContent = (net < 0 ? '−' : '') + fmt(net);
     netEl.className   = 'val ' + (net >= 0 ? 'c-blue' : 'c-red');
@@ -687,13 +691,17 @@
   function renderBarChart(txs) {
     const inc = Array(12).fill(0);
     const exp = Array(12).fill(0);
+    const ret = Array(12).fill(0);
     txs.forEach(t => {
       const m = new Date(t.date + 'T00:00:00').getMonth();
-      if (t.type === 'income') inc[m] += t.amount; else exp[m] += t.amount;
+      if (t.type === 'income') inc[m] += t.amount;
+      else if (t.type === 'expense') exp[m] += t.amount;
+      else if (t.type === 'return') ret[m] += t.amount;
     });
+    const netExp = exp.map((v, i) => Math.max(0, v - ret[i]));
     if (barChart) {
       barChart.data.datasets[0].data = inc;
-      barChart.data.datasets[1].data = exp;
+      barChart.data.datasets[1].data = netExp;
       barChart.update(); return;
     }
     barChart = new Chart(document.getElementById('monthlyChart').getContext('2d'), {
@@ -701,8 +709,8 @@
       data: {
         labels: MO_SHORT,
         datasets: [
-          { label: 'Income',   data: inc, backgroundColor: '#10b98126', borderColor: '#10b981', borderWidth: 1.5, borderRadius: 4 },
-          { label: 'Expenses', data: exp, backgroundColor: '#ef444426', borderColor: '#ef4444', borderWidth: 1.5, borderRadius: 4 }
+          { label: 'Income',   data: inc,    backgroundColor: '#10b98126', borderColor: '#10b981', borderWidth: 1.5, borderRadius: 4 },
+          { label: 'Expenses', data: netExp, backgroundColor: '#ef444426', borderColor: '#ef4444', borderWidth: 1.5, borderRadius: 4 }
         ]
       },
       options: {
@@ -720,13 +728,13 @@
   }
 
   function renderCatTable(txs) {
-    const exps  = txs.filter(t => t.type === 'expense');
-    const total = exps.reduce((s,t) => s + t.amount, 0);
     const byCat = {};
     EXP_CATS.forEach(c => { byCat[c] = 0; });
-    exps.forEach(t => { if (byCat[t.category] !== undefined) byCat[t.category] += t.amount; });
+    txs.filter(t => t.type === 'expense').forEach(t => { if (byCat[t.category] !== undefined) byCat[t.category] += t.amount; });
+    txs.filter(t => t.type === 'return').forEach(t =>  { if (byCat[t.category] !== undefined) byCat[t.category] -= t.amount; });
 
-    const rows = EXP_CATS.map(c => ({ c, a: byCat[c] })).filter(r => r.a > 0).sort((a,b) => b.a - a.a);
+    const rows  = EXP_CATS.map(c => ({ c, a: byCat[c] })).filter(r => r.a > 0).sort((a,b) => b.a - a.a);
+    const total = rows.reduce((s, r) => s + r.a, 0);
     const tbody = document.getElementById('catBody');
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="2" class="empty-note">No expenses this year</td></tr>'; return;
@@ -771,7 +779,7 @@
   }
 
   function setTxTypeTo(id, type) {
-    const cats = type === 'expense' ? EXP_CATS : INC_CATS;
+    const cats = type === 'income' ? INC_CATS : EXP_CATS;
     save(load().map(t => t.id !== id ? t : {
       ...t, type, category: cats.includes(t.category) ? t.category : cats[0]
     }));
@@ -781,8 +789,8 @@
   function txRow(t, showAcct = true) {
     const ds   = new Date(t.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
     const sign = t.sign !== undefined ? t.sign : (t.type === 'income' ? '+' : '−');
-    const clr  = t.type === 'income' ? 'c-green' : 'c-red';
-    const dot  = t.type === 'income' ? '#10b981' : '#ef4444';
+    const clr  = t.type === 'income' ? 'c-green' : t.type === 'return' ? 'c-purple' : 'c-red';
+    const dot  = t.type === 'income' ? '#10b981' : t.type === 'return' ? '#6366f1' : '#ef4444';
     return `<div class="tx-item">
       <input type="checkbox" class="tx-cb tx-cb-item" data-id="${t.id}" ${selectedIds.has(t.id)?'checked':''} onchange="toggleSelect(${t.id})">
       <div class="tx-dot" style="background:${dot}"></div>
@@ -796,6 +804,7 @@
       <div class="tx-type-btns">
         <button class="tx-type-btn inc${t.type==='income'?' on':''}" onclick="setTxTypeTo(${t.id},'income')">Income</button>
         <button class="tx-type-btn exp${t.type==='expense'?' on':''}" onclick="setTxTypeTo(${t.id},'expense')">Expense</button>
+        <button class="tx-type-btn ret${t.type==='return'?' on':''}" onclick="setTxTypeTo(${t.id},'return')">Return</button>
       </div>
       <button class="tx-edit" onclick="openEditModal(${t.id})" title="Edit">✎</button>
       <button class="tx-del" onclick="deleteById(${t.id})" title="Delete">×</button>
@@ -828,13 +837,15 @@
         .filter(([,rows]) => rows.length > 0)
         .map(([acct, rows]) => {
           const spent    = rows.filter(t => t.type==='expense').reduce((s,t) => s+t.amount, 0);
-          const received = rows.filter(t => t.type==='income').reduce((s,t)  => s+t.amount, 0);
-          const net      = received - spent;
+          const returned = rows.filter(t => t.type==='return').reduce((s,t) => s+t.amount, 0);
+          const received = rows.filter(t => t.type==='income').reduce((s,t) => s+t.amount, 0);
+          const net      = received - spent + returned;
           return `<div class="acct-group">
             <div class="acct-group-hdr">
               <span class="acct-name">${esc(acct)}</span>
               <span class="acct-stats">
                 ${spent    > 0 ? `<span class="c-red">Spent ${fmt(spent)}</span>` : ''}
+                ${returned > 0 ? `<span class="c-purple">Returns ${fmt(returned)}</span>` : ''}
                 ${received > 0 ? `<span class="c-green">Received ${fmt(received)}</span>` : ''}
                 <span class="${net>=0?'c-blue':'c-red'}">Net ${net<0?'−':''}${fmt(net)}</span>
               </span>
