@@ -68,10 +68,34 @@
     .chart-wrap { position: relative; height: 280px; }
 
     /* ── Middle row ── */
-    .middle-row {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 1.25rem; margin-bottom: 1.25rem;
+    .middle-row { margin-bottom: 1.25rem; }
+
+    /* ── View toggle (By Month / By Account) ── */
+    .view-toggle {
+      display: inline-flex; background: #f3f4f6; border-radius: 9px;
+      padding: 3px; margin-bottom: 1rem;
     }
+    .view-toggle button {
+      padding: 0.32rem 0.9rem; border: none; background: none;
+      border-radius: 7px; cursor: pointer; font-size: 0.8rem;
+      font-weight: 500; color: var(--muted); transition: all 0.15s;
+    }
+    .view-toggle button.active {
+      background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.12); color: var(--text);
+    }
+
+    /* ── Account groups (By Account view) ── */
+    .acct-group { margin-bottom: 1.1rem; }
+    .acct-group-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.55rem 0.8rem; background: #f9fafb; border-radius: 9px;
+      margin-bottom: 0.1rem;
+    }
+    .acct-group-hdr .acct-name { font-weight: 600; font-size: 0.87rem; }
+    .acct-group-hdr .acct-stats { display: flex; gap: 1.1rem; font-size: 0.77rem; }
+    .acct-group-hdr .acct-stats span { white-space: nowrap; }
+    .acct-group .tx-item { padding-left: 0.5rem; }
+    .acct-empty { color: var(--light); font-size: 0.81rem; padding: 0.4rem 0.8rem; }
 
     /* ── Data tables ── */
     .data-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
@@ -295,7 +319,7 @@
     </div>
   </div>
 
-  <!-- Category + Account tables -->
+  <!-- Category table -->
   <div class="middle-row">
     <div class="panel">
       <div class="panel-inner">
@@ -306,15 +330,6 @@
         </table>
       </div>
     </div>
-    <div class="panel">
-      <div class="panel-inner">
-        <h2>Account Summary</h2>
-        <table class="data-table">
-          <thead><tr><th>Account</th><th class="num">Spent</th><th class="num">Received</th><th class="num">Net</th></tr></thead>
-          <tbody id="acctBody"></tbody>
-        </table>
-      </div>
-    </div>
   </div>
 
   <!-- Transaction list + Add form -->
@@ -322,8 +337,14 @@
     <div class="panel">
       <div class="panel-inner">
         <h2>Transactions</h2>
-        <div class="month-tabs" id="monthTabs"></div>
-        <ul class="tx-list" id="txList"></ul>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
+          <div class="view-toggle">
+            <button id="vByMonth" class="active" onclick="setGroupBy('month')">By Month</button>
+            <button id="vByAcct" onclick="setGroupBy('account')">By Account</button>
+          </div>
+          <div class="month-tabs" id="monthTabs" style="margin-bottom:0"></div>
+        </div>
+        <div id="txList"></div>
       </div>
     </div>
 
@@ -422,6 +443,7 @@
   let viewYear    = new Date().getFullYear();
   let txType      = 'expense';
   let filterMonth = -1;
+  let groupBy     = 'month';
   let barChart    = null;
 
   const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
@@ -463,7 +485,6 @@
 
     renderBarChart(txs);
     renderCatTable(txs);
-    renderAcctTable(txs);
     renderMonthTabs();
     renderTxList(txs);
   }
@@ -520,38 +541,6 @@
     ).join('') + `<tr class="tot"><td>Total</td><td class="num c-red">${fmt(total)}</td></tr>`;
   }
 
-  function renderAcctTable(txs) {
-    const data = {};
-    ACCOUNTS.forEach(a => { data[a] = { s: 0, r: 0 }; });
-    txs.forEach(t => {
-      const k = t.account || 'Other';
-      if (!data[k]) data[k] = { s: 0, r: 0 };
-      if (t.type === 'expense') data[k].s += t.amount; else data[k].r += t.amount;
-    });
-    const rows = Object.entries(data).filter(([,v]) => v.s > 0 || v.r > 0);
-    const tbody = document.getElementById('acctBody');
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-note">No data yet</td></tr>'; return;
-    }
-    const ts = rows.reduce((s,[,v]) => s + v.s, 0);
-    const tr = rows.reduce((s,[,v]) => s + v.r, 0);
-    const tn = tr - ts;
-    tbody.innerHTML = rows.map(([a, v]) => {
-      const n = v.r - v.s;
-      return `<tr>
-        <td>${esc(a)}</td>
-        <td class="num c-red">${v.s > 0 ? fmt(v.s) : '—'}</td>
-        <td class="num c-green">${v.r > 0 ? fmt(v.r) : '—'}</td>
-        <td class="num ${n >= 0 ? 'c-blue' : 'c-red'}">${(n < 0 ? '−' : '') + fmt(n)}</td>
-      </tr>`;
-    }).join('') + `<tr class="tot">
-      <td>Total</td>
-      <td class="num c-red">${fmt(ts)}</td>
-      <td class="num c-green">${fmt(tr)}</td>
-      <td class="num ${tn >= 0 ? 'c-blue' : 'c-red'}">${(tn < 0 ? '−' : '') + fmt(tn)}</td>
-    </tr>`;
-  }
-
   function renderMonthTabs() {
     document.getElementById('monthTabs').innerHTML =
       `<button class="mtab ${filterMonth===-1?'active':''}" onclick="setFilter(-1)">All</button>` +
@@ -560,34 +549,76 @@
 
   function setFilter(m) { filterMonth = m; renderMonthTabs(); renderTxList(yearTx()); }
 
+  function setGroupBy(mode) {
+    groupBy = mode;
+    document.getElementById('vByMonth').className = mode === 'month'   ? 'active' : '';
+    document.getElementById('vByAcct').className  = mode === 'account' ? 'active' : '';
+    renderTxList(yearTx());
+  }
+
+  function txRow(t, showAcct = true) {
+    const ds   = new Date(t.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    const sign = t.type === 'income' ? '+' : '−';
+    const clr  = t.type === 'income' ? 'c-green' : 'c-red';
+    const dot  = t.type === 'income' ? '#10b981' : '#ef4444';
+    return `<div class="tx-item">
+      <div class="tx-dot" style="background:${dot}"></div>
+      <div class="tx-info">
+        <div class="desc">${esc(t.description)}</div>
+        <div class="meta">${esc(t.category)} · ${ds}${showAcct && t.account ? ' · <strong>' + esc(t.account) + '</strong>' : ''}</div>
+      </div>
+      <div class="tx-right">
+        <div class="tx-amt ${clr}">${sign}${fmt(t.amount)}</div>
+      </div>
+      <button class="tx-edit" onclick="openEditModal(${t.id})" title="Edit">✎</button>
+      <button class="tx-del" onclick="deleteById(${t.id})" title="Delete">×</button>
+    </div>`;
+  }
+
   function renderTxList(allTxs) {
     const txs = filterMonth === -1
       ? allTxs
-      : allTxs.filter(t => new Date(t.date + 'T00:00:00').getMonth() === filterMonth);
-    const list = document.getElementById('txList');
-    if (!txs.length) {
-      list.innerHTML = `<li class="empty-note">No transactions${filterMonth >= 0 ? ' in ' + MO_FULL[filterMonth] : ' this year'}</li>`;
-      return;
+      : allTxs.filter(t => new Date(t.date+'T00:00:00').getMonth() === filterMonth);
+    const container = document.getElementById('txList');
+
+    if (groupBy === 'account') {
+      if (!txs.length) {
+        container.innerHTML = `<p class="empty-note">No transactions${filterMonth >= 0 ? ' in ' + MO_FULL[filterMonth] : ' this year'}</p>`;
+        return;
+      }
+      const sorted = [...txs].sort((a,b) => new Date(b.date)-new Date(a.date));
+      const byAcct = {};
+      ACCOUNTS.forEach(a => { byAcct[a] = []; });
+      sorted.forEach(t => {
+        const k = t.account || 'Other';
+        if (!byAcct[k]) byAcct[k] = [];
+        byAcct[k].push(t);
+      });
+      container.innerHTML = Object.entries(byAcct)
+        .filter(([,rows]) => rows.length > 0)
+        .map(([acct, rows]) => {
+          const spent    = rows.filter(t => t.type==='expense').reduce((s,t) => s+t.amount, 0);
+          const received = rows.filter(t => t.type==='income').reduce((s,t)  => s+t.amount, 0);
+          const net      = received - spent;
+          return `<div class="acct-group">
+            <div class="acct-group-hdr">
+              <span class="acct-name">${esc(acct)}</span>
+              <span class="acct-stats">
+                ${spent    > 0 ? `<span class="c-red">Spent ${fmt(spent)}</span>` : ''}
+                ${received > 0 ? `<span class="c-green">Received ${fmt(received)}</span>` : ''}
+                <span class="${net>=0?'c-blue':'c-red'}">Net ${net<0?'−':''}${fmt(net)}</span>
+              </span>
+            </div>
+            ${rows.map(t => txRow(t, false)).join('')}
+          </div>`;
+        }).join('');
+    } else {
+      if (!txs.length) {
+        container.innerHTML = `<p class="empty-note">No transactions${filterMonth >= 0 ? ' in ' + MO_FULL[filterMonth] : ' this year'}</p>`;
+        return;
+      }
+      container.innerHTML = [...txs].sort((a,b) => new Date(b.date)-new Date(a.date)).map(t => txRow(t, true)).join('');
     }
-    list.innerHTML = [...txs].sort((a,b) => new Date(b.date)-new Date(a.date)).map(t => {
-      const ds   = new Date(t.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      const sign = t.type === 'income' ? '+' : '−';
-      const clr  = t.type === 'income' ? 'c-green' : 'c-red';
-      const dot  = t.type === 'income' ? '#10b981' : '#ef4444';
-      return `<li class="tx-item">
-        <div class="tx-dot" style="background:${dot}"></div>
-        <div class="tx-info">
-          <div class="desc">${esc(t.description)}</div>
-          <div class="meta">${esc(t.category)} · ${ds}</div>
-        </div>
-        <div class="tx-right">
-          <div class="tx-amt ${clr}">${sign}${fmt(t.amount)}</div>
-          <div class="tx-acct">${esc(t.account||'')}</div>
-        </div>
-        <button class="tx-edit" onclick="openEditModal(${t.id})" title="Edit">✎</button>
-        <button class="tx-del" onclick="deleteById(${t.id})" title="Delete">×</button>
-      </li>`;
-    }).join('');
   }
 
   // ── Year nav ──
