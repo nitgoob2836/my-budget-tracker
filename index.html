@@ -7,225 +7,188 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #10b981; --red: #ef4444; --blue: #3b82f6;
+      --dark: #1a1a2e; --bg: #f0f2f5; --card: #ffffff;
+      --border: #e5e7eb; --text: #1a1a2e;
+      --muted: #6b7280; --light: #9ca3af;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f0f2f5;
-      color: #1a1a2e;
-      min-height: 100vh;
+      background: var(--bg); color: var(--text); min-height: 100vh;
     }
 
+    /* ── Header ── */
     header {
-      background: #1a1a2e;
-      color: white;
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      background: var(--dark); color: white;
+      padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between;
     }
-    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
-
-    .month-nav { display: flex; align-items: center; gap: 0.75rem; }
-    .month-nav button {
-      background: rgba(255,255,255,0.15);
-      border: none;
-      color: white;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 1.1rem;
-      line-height: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    .year-nav { display: flex; align-items: center; gap: 0.75rem; }
+    .year-nav button {
+      background: rgba(255,255,255,0.15); border: none; color: white;
+      width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+      font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
     }
-    .month-nav button:hover { background: rgba(255,255,255,0.28); }
-    .month-nav span { font-size: 1rem; font-weight: 500; min-width: 150px; text-align: center; }
+    .year-nav button:hover { background: rgba(255,255,255,0.28); }
+    .year-nav span { font-size: 1.1rem; font-weight: 600; min-width: 60px; text-align: center; }
 
-    main { max-width: 1100px; margin: 2rem auto; padding: 0 1.25rem; }
+    /* ── Layout ── */
+    main { max-width: 1200px; margin: 1.5rem auto; padding: 0 1.25rem; }
 
-    .summary-cards {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      margin-bottom: 1.5rem;
+    .panel { background: var(--card); border-radius: 14px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); }
+    .panel-inner { padding: 1.25rem 1.5rem; }
+    .panel h2 {
+      font-size: 0.75rem; font-weight: 700; color: var(--light);
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 1rem;
     }
-    .card {
-      background: white;
-      border-radius: 14px;
-      padding: 1.25rem 1.5rem;
-      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
-    }
-    .card .label {
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #888;
-      margin-bottom: 0.4rem;
-    }
-    .card .amount { font-size: 1.9rem; font-weight: 700; }
-    .card.income .amount { color: #10b981; }
-    .card.expenses .amount { color: #ef4444; }
-    .card.balance .amount { color: #3b82f6; }
 
-    .content-grid {
-      display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 1.25rem;
-      align-items: start;
+    /* ── Summary cards ── */
+    .summary-row {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1rem; margin-bottom: 1.25rem;
     }
-    .left-col { display: flex; flex-direction: column; gap: 1.25rem; }
-
-    .panel {
-      background: white;
-      border-radius: 14px;
-      padding: 1.25rem 1.5rem;
-      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+    .stat-card {
+      background: var(--card); border-radius: 14px;
+      padding: 1.25rem 1.5rem; box-shadow: 0 1px 6px rgba(0,0,0,0.07);
     }
-    .panel h2 { font-size: 0.9rem; font-weight: 600; color: #555; margin-bottom: 1rem; }
+    .stat-card .lbl {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--light); margin-bottom: 0.35rem;
+    }
+    .stat-card .val { font-size: 2rem; font-weight: 700; }
+    .c-green { color: var(--green); }
+    .c-red   { color: var(--red);   }
+    .c-blue  { color: var(--blue);  }
 
-    .chart-wrap { position: relative; height: 260px; }
-    .empty-note { text-align: center; color: #bbb; padding: 3.5rem 0; font-size: 0.88rem; }
+    /* ── Monthly chart ── */
+    .chart-section { margin-bottom: 1.25rem; }
+    .chart-wrap { position: relative; height: 280px; }
 
+    /* ── Middle row ── */
+    .middle-row {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1.25rem; margin-bottom: 1.25rem;
+    }
+
+    /* ── Data tables ── */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .data-table th {
+      text-align: left; padding: 0.42rem 0.65rem;
+      font-size: 0.71rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--light); border-bottom: 1.5px solid var(--border);
+    }
+    .data-table td { padding: 0.42rem 0.65rem; border-bottom: 1px solid #f5f5f5; color: var(--muted); }
+    .data-table td:first-child { color: var(--text); font-weight: 500; }
+    .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr.tot td {
+      font-weight: 700; color: var(--text);
+      border-top: 1.5px solid var(--border); border-bottom: none;
+    }
+
+    /* ── Bottom row ── */
+    .bottom-row {
+      display: grid; grid-template-columns: 1fr 320px;
+      gap: 1.25rem; align-items: start;
+    }
+
+    /* ── Month filter tabs ── */
+    .month-tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem; }
+    .mtab {
+      padding: 0.28rem 0.65rem; border: 1.5px solid var(--border);
+      border-radius: 20px; font-size: 0.77rem; font-weight: 500;
+      cursor: pointer; background: none; color: var(--muted); transition: all 0.15s;
+    }
+    .mtab.active { background: var(--dark); border-color: var(--dark); color: white; }
+    .mtab:hover:not(.active) { border-color: var(--dark); color: var(--dark); }
+
+    /* ── Transaction list ── */
     .tx-list { list-style: none; }
     .tx-item {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.7rem 0;
-      border-bottom: 1px solid #f3f3f3;
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.65rem 0; border-bottom: 1px solid #f5f5f5;
     }
     .tx-item:last-child { border-bottom: none; }
-    .tx-icon {
-      width: 36px; height: 36px;
-      border-radius: 9px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1rem;
-      flex-shrink: 0;
-    }
+    .tx-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .tx-info { flex: 1; min-width: 0; }
-    .tx-info .desc { font-weight: 500; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tx-info .meta { font-size: 0.73rem; color: #aaa; margin-top: 2px; }
-    .tx-amount { font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
-    .tx-amount.income { color: #10b981; }
-    .tx-amount.expense { color: #ef4444; }
+    .tx-info .desc { font-weight: 500; font-size: 0.87rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tx-info .meta { font-size: 0.72rem; color: var(--light); margin-top: 1px; }
+    .tx-right { text-align: right; flex-shrink: 0; }
+    .tx-amt { font-weight: 600; font-size: 0.88rem; }
+    .tx-acct { font-size: 0.71rem; color: var(--light); }
     .tx-del {
       background: none; border: none; color: #d1d5db;
-      cursor: pointer; font-size: 1.1rem; padding: 3px 5px;
-      border-radius: 5px; flex-shrink: 0; line-height: 1;
+      cursor: pointer; font-size: 1rem; padding: 2px 5px; border-radius: 4px; flex-shrink: 0;
     }
-    .tx-del:hover { color: #ef4444; background: #fef2f2; }
+    .tx-del:hover { color: var(--red); background: #fef2f2; }
+    .empty-note { text-align: center; color: var(--light); padding: 2.5rem 0; font-size: 0.85rem; }
 
-    /* Form */
+    /* ── Add transaction form ── */
+    .form-group { margin-bottom: 0.65rem; }
+    .form-group label { display: block; font-size: 0.74rem; font-weight: 600; color: var(--muted); margin-bottom: 0.28rem; }
+    .form-group input, .form-group select {
+      width: 100%; padding: 0.52rem 0.7rem;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 0.86rem; outline: none; background: white; color: var(--text);
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--blue); }
     .type-toggle {
-      display: flex;
-      background: #f3f4f6;
-      border-radius: 9px;
-      padding: 3px;
-      margin-bottom: 1rem;
+      display: flex; background: #f3f4f6; border-radius: 9px;
+      padding: 3px; margin-bottom: 0.75rem;
     }
     .type-toggle button {
-      flex: 1; padding: 0.45rem;
-      border: none; background: none;
-      border-radius: 7px; cursor: pointer;
-      font-size: 0.84rem; font-weight: 500; color: #777;
-      transition: all 0.15s;
+      flex: 1; padding: 0.42rem; border: none; background: none;
+      border-radius: 7px; cursor: pointer; font-size: 0.83rem;
+      font-weight: 500; color: var(--muted); transition: all 0.15s;
     }
-    .type-toggle button.active {
-      background: white;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.13);
-      color: #1a1a2e;
-    }
-    .type-toggle button.active.expense-btn { color: #ef4444; }
-    .type-toggle button.active.income-btn  { color: #10b981; }
-
-    .form-group { margin-bottom: 0.7rem; }
-    .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: #666; margin-bottom: 0.3rem; }
-    .form-group input, .form-group select {
-      width: 100%;
-      padding: 0.55rem 0.75rem;
-      border: 1.5px solid #e5e7eb;
-      border-radius: 8px;
-      font-size: 0.88rem;
-      outline: none;
-      transition: border-color 0.15s;
-      background: white;
-      color: #1a1a2e;
-    }
-    .form-group input:focus, .form-group select:focus { border-color: #3b82f6; }
-
+    .type-toggle button.active { background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+    .type-toggle button.active.exp-btn { color: var(--red); }
+    .type-toggle button.active.inc-btn { color: var(--green); }
     .add-btn {
-      width: 100%; padding: 0.7rem;
-      background: #1a1a2e; color: white;
-      border: none; border-radius: 9px;
-      font-size: 0.9rem; font-weight: 600;
-      cursor: pointer; margin-top: 0.4rem;
-      transition: background 0.15s;
+      width: 100%; padding: 0.65rem; background: var(--dark); color: white;
+      border: none; border-radius: 9px; font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; margin-top: 0.3rem; transition: background 0.15s;
     }
     .add-btn:hover { background: #2e2e50; }
 
-    /* CSV Import */
+    /* ── CSV Import ── */
     .import-panel {
-      background: white;
-      border-radius: 14px;
+      background: white; border-radius: 14px;
       box-shadow: 0 1px 6px rgba(0,0,0,0.07);
-      margin-bottom: 1.5rem;
-      overflow: hidden;
+      margin-bottom: 1.25rem; overflow: hidden;
     }
     .import-toggle {
       width: 100%; display: flex; align-items: center; justify-content: space-between;
-      padding: 1rem 1.5rem; background: none; border: none; cursor: pointer;
-      font-size: 0.88rem; font-weight: 600; color: #555; text-align: left;
+      padding: 0.9rem 1.5rem; background: none; border: none; cursor: pointer;
+      font-size: 0.86rem; font-weight: 600; color: var(--muted); text-align: left;
     }
     .import-toggle:hover { background: #fafafa; }
     .import-body { padding: 0 1.5rem 1.5rem; border-top: 1px solid #f0f0f0; }
     .drop-zone {
-      border: 2px dashed #d1d5db; border-radius: 10px;
-      padding: 1.75rem; text-align: center; margin-top: 1rem;
-      transition: border-color 0.15s, background 0.15s; cursor: pointer;
+      border: 2px dashed var(--border); border-radius: 10px;
+      padding: 1.5rem; text-align: center; margin-top: 1rem; cursor: pointer;
+      transition: all 0.15s;
     }
-    .drop-zone.drag-over { border-color: #3b82f6; background: #eff6ff; }
-    .drop-zone p { color: #888; font-size: 0.85rem; }
-    .drop-zone .browse-btn { color: #3b82f6; background: none; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-decoration: underline; }
-    .map-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-      gap: 0.75rem; margin: 1rem 0;
-    }
-    .map-group label { display: block; font-size: 0.75rem; font-weight: 600; color: #666; margin-bottom: 0.3rem; }
-    .map-group select {
-      width: 100%; padding: 0.5rem 0.7rem;
-      border: 1.5px solid #e5e7eb; border-radius: 8px;
-      font-size: 0.84rem; outline: none; background: white; color: #1a1a2e;
-    }
-    .map-group select:focus { border-color: #3b82f6; }
-    .preview-table {
-      width: 100%; border-collapse: collapse;
-      font-size: 0.8rem; margin: 0.75rem 0;
-      display: block; overflow-x: auto;
-    }
-    .preview-table th {
-      background: #f9fafb; font-weight: 600; color: #555;
-      padding: 0.4rem 0.7rem; text-align: left;
-      border-bottom: 1.5px solid #e5e7eb; white-space: nowrap;
-    }
-    .preview-table td {
-      padding: 0.4rem 0.7rem; border-bottom: 1px solid #f3f3f3;
-      color: #444; white-space: nowrap; max-width: 220px;
-      overflow: hidden; text-overflow: ellipsis;
-    }
-    .import-btn {
-      padding: 0.62rem 1.4rem; background: #1a1a2e; color: white;
-      border: none; border-radius: 9px; font-size: 0.88rem; font-weight: 600;
-      cursor: pointer; transition: background 0.15s;
-    }
+    .drop-zone.drag-over { border-color: var(--blue); background: #eff6ff; }
+    .drop-zone p { color: var(--light); font-size: 0.84rem; }
+    .browse-btn { color: var(--blue); background: none; border: none; cursor: pointer; font-weight: 600; text-decoration: underline; font-size: 0.84rem; }
+    .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.7rem; margin: 1rem 0; }
+    .map-group label { display: block; font-size: 0.74rem; font-weight: 600; color: var(--muted); margin-bottom: 0.28rem; }
+    .map-group select { width: 100%; padding: 0.48rem 0.65rem; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.83rem; outline: none; background: white; color: var(--text); }
+    .map-group select:focus { border-color: var(--blue); }
+    .preview-table { width: 100%; border-collapse: collapse; font-size: 0.79rem; margin: 0.65rem 0; display: block; overflow-x: auto; }
+    .preview-table th { background: #f9fafb; font-weight: 600; color: var(--muted); padding: 0.38rem 0.6rem; text-align: left; border-bottom: 1.5px solid var(--border); white-space: nowrap; }
+    .preview-table td { padding: 0.38rem 0.6rem; border-bottom: 1px solid #f5f5f5; color: #444; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    .import-btn { padding: 0.6rem 1.3rem; background: var(--dark); color: white; border: none; border-radius: 9px; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
     .import-btn:hover { background: #2e2e50; }
-    .import-note { font-size: 0.77rem; color: #aaa; margin-top: 0.6rem; }
+    .import-note { font-size: 0.76rem; color: var(--light); margin-top: 0.5rem; }
 
-    @media (max-width: 760px) {
-      .summary-cards { grid-template-columns: 1fr; }
-      .content-grid { grid-template-columns: 1fr; }
+    @media (max-width: 900px) {
+      .summary-row, .middle-row, .bottom-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -233,14 +196,16 @@
 
 <header>
   <h1>Budget Tracker</h1>
-  <div class="month-nav">
-    <button id="prevBtn">&#8249;</button>
-    <span id="monthLabel"></span>
-    <button id="nextBtn">&#8250;</button>
+  <div class="year-nav">
+    <button id="prevYear">&#8249;</button>
+    <span id="yearLabel"></span>
+    <button id="nextYear">&#8250;</button>
   </div>
 </header>
 
 <main>
+
+  <!-- CSV Import -->
   <div class="import-panel">
     <button class="import-toggle" onclick="toggleImport()">
       <span>⬆ Import Bank CSV</span>
@@ -252,255 +217,331 @@
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="event.preventDefault();this.classList.remove('drag-over');handleCsvFile(event.dataTransfer.files[0])">
-        <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none"
-               onchange="handleCsvFile(this.files[0])">
+        <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none" onchange="handleCsvFile(this.files[0])">
         <p>Drag &amp; drop your bank CSV here, or <span class="browse-btn">browse</span></p>
-        <p style="margin-top:0.4rem;font-size:0.77rem;color:#bbb">Supports Chase, Bank of America, Wells Fargo, and most bank exports</p>
+        <p style="margin-top:0.3rem;font-size:0.76rem;color:#bbb">Supports Chase, Bank of America, Wells Fargo, and most bank exports</p>
       </div>
       <div id="mapArea" style="display:none">
         <div class="map-grid" id="mapGrid"></div>
         <div id="previewArea"></div>
         <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:0.25rem">
           <button class="import-btn" onclick="doImport()">Import Transactions</button>
-          <span id="importCount" style="font-size:0.84rem;color:#666"></span>
+          <span id="importCount" style="font-size:0.83rem;color:var(--muted)"></span>
         </div>
-        <p class="import-note">Imported expenses are assigned to "Other" — you can change categories after import.</p>
+        <p class="import-note">Imported expenses are assigned to "Miscellaneous" — you can change categories after import.</p>
       </div>
     </div>
   </div>
 
-  <div class="summary-cards">
-    <div class="card income">
-      <div class="label">Income</div>
-      <div class="amount" id="sumIncome">$0.00</div>
+  <!-- Summary -->
+  <div class="summary-row">
+    <div class="stat-card">
+      <div class="lbl">Total Income</div>
+      <div class="val c-green" id="sumIncome">$0.00</div>
     </div>
-    <div class="card expenses">
-      <div class="label">Expenses</div>
-      <div class="amount" id="sumExpenses">$0.00</div>
+    <div class="stat-card">
+      <div class="lbl">Total Expenses</div>
+      <div class="val c-red" id="sumExpenses">$0.00</div>
     </div>
-    <div class="card balance">
-      <div class="label">Balance</div>
-      <div class="amount" id="sumBalance">$0.00</div>
+    <div class="stat-card">
+      <div class="lbl">Net Profit</div>
+      <div class="val c-blue" id="sumNet">$0.00</div>
     </div>
   </div>
 
-  <div class="content-grid">
-    <div class="left-col">
-      <div class="panel">
+  <!-- Monthly chart -->
+  <div class="panel chart-section">
+    <div class="panel-inner">
+      <h2>Monthly Overview</h2>
+      <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Category + Account tables -->
+  <div class="middle-row">
+    <div class="panel">
+      <div class="panel-inner">
         <h2>Spending by Category</h2>
-        <div id="chartWrap" class="chart-wrap">
-          <canvas id="myChart"></canvas>
-        </div>
+        <table class="data-table">
+          <thead><tr><th>Category</th><th class="num">Amount</th></tr></thead>
+          <tbody id="catBody"></tbody>
+        </table>
       </div>
+    </div>
+    <div class="panel">
+      <div class="panel-inner">
+        <h2>Account Summary</h2>
+        <table class="data-table">
+          <thead><tr><th>Account</th><th class="num">Spent</th><th class="num">Received</th><th class="num">Net</th></tr></thead>
+          <tbody id="acctBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-      <div class="panel">
+  <!-- Transaction list + Add form -->
+  <div class="bottom-row">
+    <div class="panel">
+      <div class="panel-inner">
         <h2>Transactions</h2>
-        <ul id="txList" class="tx-list"></ul>
+        <div class="month-tabs" id="monthTabs"></div>
+        <ul class="tx-list" id="txList"></ul>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Add Transaction</h2>
-      <div class="type-toggle">
-        <button id="expenseBtn" class="active expense-btn" onclick="setType('expense')">Expense</button>
-        <button id="incomeBtn" class="income-btn" onclick="setType('income')">Income</button>
+      <div class="panel-inner">
+        <h2>Add Transaction</h2>
+        <div class="type-toggle">
+          <button id="expBtn" class="active exp-btn" onclick="setTxType('expense')">Expense</button>
+          <button id="incBtn" class="inc-btn" onclick="setTxType('income')">Income</button>
+        </div>
+        <form id="txForm">
+          <div class="form-group">
+            <label>Account</label>
+            <select id="fAcct"></select>
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="fCat"></select>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input id="fDesc" type="text" placeholder="e.g. Whole Foods" required autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Amount ($)</label>
+            <input id="fAmt" type="number" placeholder="0.00" step="0.01" min="0.01" required>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input id="fDate" type="date" required>
+          </div>
+          <button type="submit" class="add-btn">Add Transaction</button>
+        </form>
       </div>
-      <form id="txForm">
-        <div class="form-group">
-          <label>Description</label>
-          <input id="fDesc" type="text" placeholder="e.g. Groceries" required autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label>Amount ($)</label>
-          <input id="fAmount" type="number" placeholder="0.00" step="0.01" min="0.01" required>
-        </div>
-        <div class="form-group" id="catGroup">
-          <label>Category</label>
-          <select id="fCat">
-            <option value="Food">Food &amp; Dining</option>
-            <option value="Transport">Transport</option>
-            <option value="Housing">Housing</option>
-            <option value="Utilities">Utilities</option>
-            <option value="Entertainment">Entertainment</option>
-            <option value="Health">Health</option>
-            <option value="Shopping">Shopping</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Date</label>
-          <input id="fDate" type="date" required>
-        </div>
-        <button type="submit" class="add-btn">Add Transaction</button>
-      </form>
     </div>
   </div>
+
 </main>
 
 <script>
   const KEY = 'budget_tx';
-  const MONTHS = ['January','February','March','April','May','June',
-                  'July','August','September','October','November','December'];
-  const CAT_COLORS = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#6b7280'];
-  const CAT_ICONS  = { Food:'🍔', Transport:'🚗', Housing:'🏠', Utilities:'💡',
-                       Entertainment:'🎬', Health:'💊', Shopping:'🛍️', Other:'📦', Income:'💰' };
+  const MO_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MO_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  let viewYear  = new Date().getFullYear();
-  let viewMonth = new Date().getMonth();
-  let txType    = 'expense';
-  let chartInst = null;
+  const ACCOUNTS = [
+    'J - Checking', 'J - Savings', 'J - Credit Card',
+    'M - Checking', 'M - Savings', 'M - Credit Card'
+  ];
 
-  // --- Storage ---
+  const EXP_CATS = [
+    'Groceries','Gas','Home Repair','Dining','Self-Care','Fitness',
+    'Subscriptions','Mortgage','Utilities','HOA','Pet Care','Clothing',
+    'Travel','Vehicle','Miscellaneous'
+  ];
+
+  const INC_CATS = ['CPS','Quinnox','Venmo/Zelle','Store Refunds','SOFI Interest'];
+
+  let viewYear    = new Date().getFullYear();
+  let txType      = 'expense';
+  let filterMonth = -1;
+  let barChart    = null;
+
   const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
   const save = arr => localStorage.setItem(KEY, JSON.stringify(arr));
 
-  function deleteById(id) {
-    save(load().filter(t => t.id !== id));
-    render();
-  }
+  function deleteById(id) { save(load().filter(t => t.id !== id)); render(); }
 
-  // --- Helpers ---
   function fmt(n) {
     return '$' + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
   function esc(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-  function monthTx() {
-    return load().filter(t => {
-      const d = new Date(t.date + 'T00:00:00');
-      return d.getFullYear() === viewYear && d.getMonth() === viewMonth;
-    });
+  function yearTx() {
+    return load().filter(t => new Date(t.date + 'T00:00:00').getFullYear() === viewYear);
   }
 
-  // --- Type toggle ---
-  function setType(type) {
+  // ── Type toggle ──
+  function setTxType(type) {
     txType = type;
-    document.getElementById('expenseBtn').className = type === 'expense' ? 'active expense-btn' : 'expense-btn';
-    document.getElementById('incomeBtn').className  = type === 'income'  ? 'active income-btn'  : 'income-btn';
-    document.getElementById('catGroup').style.display = type === 'expense' ? '' : 'none';
+    document.getElementById('expBtn').className = type === 'expense' ? 'active exp-btn' : 'exp-btn';
+    document.getElementById('incBtn').className  = type === 'income'  ? 'active inc-btn' : 'inc-btn';
+    const cats = type === 'expense' ? EXP_CATS : INC_CATS;
+    document.getElementById('fCat').innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
   }
 
-  // --- Render ---
+  // ── Render ──
   function render() {
-    const txs     = monthTx();
-    const income  = txs.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
+    const txs      = yearTx();
+    const income   = txs.filter(t => t.type === 'income').reduce((s,t)  => s + t.amount, 0);
     const expenses = txs.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
-    const balance  = income - expenses;
+    const net      = income - expenses;
 
     document.getElementById('sumIncome').textContent   = fmt(income);
     document.getElementById('sumExpenses').textContent = fmt(expenses);
-    const balEl = document.getElementById('sumBalance');
-    balEl.textContent = (balance < 0 ? '-' : '') + fmt(balance);
+    const netEl = document.getElementById('sumNet');
+    netEl.textContent = (net < 0 ? '−' : '') + fmt(net);
+    netEl.className   = 'val ' + (net >= 0 ? 'c-blue' : 'c-red');
 
-    renderChart(txs);
-    renderList(txs);
+    renderBarChart(txs);
+    renderCatTable(txs);
+    renderAcctTable(txs);
+    renderMonthTabs();
+    renderTxList(txs);
   }
 
-  function renderChart(txs) {
-    const exps = txs.filter(t => t.type === 'expense');
-    const wrap = document.getElementById('chartWrap');
-
-    if (exps.length === 0) {
-      if (chartInst) { chartInst.destroy(); chartInst = null; }
-      wrap.innerHTML = '<p class="empty-note">No expenses to chart this month</p>';
-      return;
+  function renderBarChart(txs) {
+    const inc = Array(12).fill(0);
+    const exp = Array(12).fill(0);
+    txs.forEach(t => {
+      const m = new Date(t.date + 'T00:00:00').getMonth();
+      if (t.type === 'income') inc[m] += t.amount; else exp[m] += t.amount;
+    });
+    if (barChart) {
+      barChart.data.datasets[0].data = inc;
+      barChart.data.datasets[1].data = exp;
+      barChart.update(); return;
     }
-
-    if (!document.getElementById('myChart')) {
-      wrap.innerHTML = '<canvas id="myChart"></canvas>';
-    }
-
-    const byCat = {};
-    exps.forEach(t => { byCat[t.category] = (byCat[t.category] || 0) + t.amount; });
-    const labels = Object.keys(byCat);
-    const data   = labels.map(l => byCat[l]);
-    const colors = CAT_COLORS.slice(0, labels.length);
-
-    if (chartInst) {
-      chartInst.data.labels = labels;
-      chartInst.data.datasets[0].data = data;
-      chartInst.data.datasets[0].backgroundColor = colors;
-      chartInst.update();
-      return;
-    }
-
-    const ctx = document.getElementById('myChart').getContext('2d');
-    chartInst = new Chart(ctx, {
-      type: 'doughnut',
+    barChart = new Chart(document.getElementById('monthlyChart').getContext('2d'), {
+      type: 'bar',
       data: {
-        labels,
-        datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }]
+        labels: MO_SHORT,
+        datasets: [
+          { label: 'Income',   data: inc, backgroundColor: '#10b98126', borderColor: '#10b981', borderWidth: 1.5, borderRadius: 4 },
+          { label: 'Expenses', data: exp, backgroundColor: '#ef444426', borderColor: '#ef4444', borderWidth: 1.5, borderRadius: 4 }
+        ]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { padding: 14, font: { size: 12 } } },
-          tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.raw)}` } }
+          legend: { position: 'top', labels: { font: { size: 12 }, padding: 16 } },
+          tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw)}` } }
+        },
+        scales: {
+          y: { ticks: { callback: v => '$' + v.toLocaleString() }, grid: { color: '#f3f4f6' } },
+          x: { grid: { display: false } }
         }
       }
     });
   }
 
-  function renderList(txs) {
+  function renderCatTable(txs) {
+    const exps  = txs.filter(t => t.type === 'expense');
+    const total = exps.reduce((s,t) => s + t.amount, 0);
+    const byCat = {};
+    EXP_CATS.forEach(c => { byCat[c] = 0; });
+    exps.forEach(t => { if (byCat[t.category] !== undefined) byCat[t.category] += t.amount; });
+
+    const rows = EXP_CATS.map(c => ({ c, a: byCat[c] })).filter(r => r.a > 0).sort((a,b) => b.a - a.a);
+    const tbody = document.getElementById('catBody');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="2" class="empty-note">No expenses this year</td></tr>'; return;
+    }
+    tbody.innerHTML = rows.map(r =>
+      `<tr><td>${esc(r.c)}</td><td class="num c-red">${fmt(r.a)}</td></tr>`
+    ).join('') + `<tr class="tot"><td>Total</td><td class="num c-red">${fmt(total)}</td></tr>`;
+  }
+
+  function renderAcctTable(txs) {
+    const data = {};
+    ACCOUNTS.forEach(a => { data[a] = { s: 0, r: 0 }; });
+    txs.forEach(t => {
+      const k = t.account || 'Other';
+      if (!data[k]) data[k] = { s: 0, r: 0 };
+      if (t.type === 'expense') data[k].s += t.amount; else data[k].r += t.amount;
+    });
+    const rows = Object.entries(data).filter(([,v]) => v.s > 0 || v.r > 0);
+    const tbody = document.getElementById('acctBody');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-note">No data yet</td></tr>'; return;
+    }
+    const ts = rows.reduce((s,[,v]) => s + v.s, 0);
+    const tr = rows.reduce((s,[,v]) => s + v.r, 0);
+    const tn = tr - ts;
+    tbody.innerHTML = rows.map(([a, v]) => {
+      const n = v.r - v.s;
+      return `<tr>
+        <td>${esc(a)}</td>
+        <td class="num c-red">${v.s > 0 ? fmt(v.s) : '—'}</td>
+        <td class="num c-green">${v.r > 0 ? fmt(v.r) : '—'}</td>
+        <td class="num ${n >= 0 ? 'c-blue' : 'c-red'}">${(n < 0 ? '−' : '') + fmt(n)}</td>
+      </tr>`;
+    }).join('') + `<tr class="tot">
+      <td>Total</td>
+      <td class="num c-red">${fmt(ts)}</td>
+      <td class="num c-green">${fmt(tr)}</td>
+      <td class="num ${tn >= 0 ? 'c-blue' : 'c-red'}">${(tn < 0 ? '−' : '') + fmt(tn)}</td>
+    </tr>`;
+  }
+
+  function renderMonthTabs() {
+    document.getElementById('monthTabs').innerHTML =
+      `<button class="mtab ${filterMonth===-1?'active':''}" onclick="setFilter(-1)">All</button>` +
+      MO_SHORT.map((m,i) => `<button class="mtab ${filterMonth===i?'active':''}" onclick="setFilter(${i})">${m}</button>`).join('');
+  }
+
+  function setFilter(m) { filterMonth = m; renderMonthTabs(); renderTxList(yearTx()); }
+
+  function renderTxList(allTxs) {
+    const txs = filterMonth === -1
+      ? allTxs
+      : allTxs.filter(t => new Date(t.date + 'T00:00:00').getMonth() === filterMonth);
     const list = document.getElementById('txList');
-    if (txs.length === 0) {
-      list.innerHTML = '<li class="empty-note">No transactions this month</li>';
+    if (!txs.length) {
+      list.innerHTML = `<li class="empty-note">No transactions${filterMonth >= 0 ? ' in ' + MO_FULL[filterMonth] : ' this year'}</li>`;
       return;
     }
-    const sorted = [...txs].sort((a,b) => new Date(b.date) - new Date(a.date));
-    list.innerHTML = sorted.map(t => {
-      const icon = t.type === 'income' ? CAT_ICONS.Income : (CAT_ICONS[t.category] || '📦');
-      const bg   = t.type === 'income' ? '#d1fae5' : '#fef2f2';
-      const d    = new Date(t.date + 'T00:00:00');
-      const ds   = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const cat  = t.type === 'income' ? 'Income' : t.category;
+    list.innerHTML = [...txs].sort((a,b) => new Date(b.date)-new Date(a.date)).map(t => {
+      const ds   = new Date(t.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
       const sign = t.type === 'income' ? '+' : '−';
-      return `
-        <li class="tx-item">
-          <div class="tx-icon" style="background:${bg}">${icon}</div>
-          <div class="tx-info">
-            <div class="desc">${esc(t.description)}</div>
-            <div class="meta">${esc(cat)} · ${ds}</div>
-          </div>
-          <span class="tx-amount ${t.type}">${sign}${fmt(t.amount)}</span>
-          <button class="tx-del" onclick="deleteById(${t.id})" title="Delete">×</button>
-        </li>`;
+      const clr  = t.type === 'income' ? 'c-green' : 'c-red';
+      const dot  = t.type === 'income' ? '#10b981' : '#ef4444';
+      return `<li class="tx-item">
+        <div class="tx-dot" style="background:${dot}"></div>
+        <div class="tx-info">
+          <div class="desc">${esc(t.description)}</div>
+          <div class="meta">${esc(t.category)} · ${ds}</div>
+        </div>
+        <div class="tx-right">
+          <div class="tx-amt ${clr}">${sign}${fmt(t.amount)}</div>
+          <div class="tx-acct">${esc(t.account||'')}</div>
+        </div>
+        <button class="tx-del" onclick="deleteById(${t.id})" title="Delete">×</button>
+      </li>`;
     }).join('');
   }
 
-  // --- Month nav ---
-  function changeMonth(delta) {
-    viewMonth += delta;
-    if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
-    if (viewMonth > 11) { viewMonth = 0;  viewYear++; }
-    if (chartInst) { chartInst.destroy(); chartInst = null; }
-    document.getElementById('monthLabel').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
-    render();
-  }
-  document.getElementById('prevBtn').onclick = () => changeMonth(-1);
-  document.getElementById('nextBtn').onclick = () => changeMonth(+1);
+  // ── Year nav ──
+  document.getElementById('prevYear').onclick = () => { viewYear--; document.getElementById('yearLabel').textContent = viewYear; render(); };
+  document.getElementById('nextYear').onclick = () => { viewYear++; document.getElementById('yearLabel').textContent = viewYear; render(); };
 
-  // --- Form submit ---
+  // ── Form ──
+  document.getElementById('fAcct').innerHTML = ACCOUNTS.map(a => `<option value="${a}">${a}</option>`).join('');
+
   document.getElementById('txForm').onsubmit = e => {
     e.preventDefault();
     const desc   = document.getElementById('fDesc').value.trim();
-    const amount = parseFloat(document.getElementById('fAmount').value);
-    const cat    = txType === 'expense' ? document.getElementById('fCat').value : 'Income';
+    const amount = parseFloat(document.getElementById('fAmt').value);
     const date   = document.getElementById('fDate').value;
     if (!desc || !amount || !date) return;
-
     const all = load();
-    all.push({ id: Date.now(), description: desc, amount, type: txType, category: cat, date });
+    all.push({
+      id: Date.now(),
+      description: desc, amount, type: txType,
+      category: document.getElementById('fCat').value,
+      account:  document.getElementById('fAcct').value,
+      date
+    });
     save(all);
     e.target.reset();
     document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
-    setType(txType);
+    setTxType(txType);
     render();
   };
 
-  // --- CSV Import ---
+  // ── CSV Import ──
   let csvRows = [], csvHeaders = [];
 
   function toggleImport() {
@@ -512,190 +553,151 @@
 
   function parseCSV(text) {
     const rows = [];
-    const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-    for (const line of lines) {
+    for (const line of text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n')) {
       if (!line.trim()) continue;
       const row = []; let cur = '', inQ = false;
       for (let i = 0; i < line.length; i++) {
         const c = line[i];
-        if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
-        else if (c === ',' && !inQ) { row.push(cur.trim()); cur = ''; }
+        if (c === '"') { if (inQ && line[i+1]==='"') { cur+='"'; i++; } else inQ=!inQ; }
+        else if (c===',' && !inQ) { row.push(cur.trim()); cur=''; }
         else cur += c;
       }
-      row.push(cur.trim());
-      rows.push(row);
+      row.push(cur.trim()); rows.push(row);
     }
     return rows;
   }
 
-  function parseDate(str) {
-    str = (str || '').trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-    let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  function parseDateStr(s) {
+    s = (s||'').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
-    m = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
     if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
-    m = str.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
-    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
     return null;
   }
 
-  function parseAmount(str) {
-    if (!str) return null;
-    const cleaned = str.replace(/[$,\s]/g,'').replace(/\((.+)\)/,'-$1');
-    const n = parseFloat(cleaned);
+  function parseAmt(s) {
+    if (!s) return null;
+    const n = parseFloat(s.replace(/[$,\s]/g,'').replace(/\((.+)\)/,'-$1'));
     return isNaN(n) ? null : n;
   }
 
   function handleCsvFile(file) {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
+    const r = new FileReader();
+    r.onload = e => {
       const rows = parseCSV(e.target.result);
       if (rows.length < 2) { alert('CSV appears empty or invalid.'); return; }
       csvHeaders = rows[0];
       csvRows = rows.slice(1).filter(r => r.some(c => c));
       renderCsvMapping();
     };
-    reader.readAsText(file);
+    r.readAsText(file);
   }
 
   function renderCsvMapping() {
     document.getElementById('mapArea').style.display = '';
-    const hl = csvHeaders.map(h => h.toLowerCase());
-    const find = (...terms) => hl.findIndex(h => terms.some(t => h.includes(t)));
-
-    const dateI   = find('date');
-    const descI   = find('desc','memo','narr','payee','name');
-    const amtI    = find('amount');
-    const debitI  = find('debit','withdrawal','withdraw');
-    const creditI = find('credit','deposit');
-    const hasDebitCredit = debitI >= 0 && creditI >= 0;
-
-    const opts = csvHeaders.map((h,i) =>
-      `<option value="${i}">${h || 'Column '+(i+1)}</option>`).join('');
+    const hl   = csvHeaders.map(h => h.toLowerCase());
+    const find = (...ts) => hl.findIndex(h => ts.some(t => h.includes(t)));
+    const di = find('date'), xi = find('desc','memo','narr','payee','name');
+    const ai = find('amount'), dbi = find('debit','withdrawal'), cri = find('credit','deposit');
+    const hasDC = dbi >= 0 && cri >= 0;
+    const opts  = csvHeaders.map((h,i) => `<option value="${i}">${h||'Col '+(i+1)}</option>`).join('');
+    const aOpts = ACCOUNTS.map(a => `<option value="${a}">${a}</option>`).join('');
 
     document.getElementById('mapGrid').innerHTML = `
-      <div class="map-group">
-        <label>Date Column</label>
-        <select id="mDate" onchange="updateCsvPreview()">${opts}</select>
-      </div>
-      <div class="map-group">
-        <label>Description Column</label>
-        <select id="mDesc" onchange="updateCsvPreview()">${opts}</select>
-      </div>
-      <div class="map-group">
-        <label>Amount Format</label>
-        <select id="mMode" onchange="onModeChange()">
+      <div class="map-group"><label>Date Column</label><select id="mDate" onchange="updateCsvPrev()">${opts}</select></div>
+      <div class="map-group"><label>Description Column</label><select id="mDesc" onchange="updateCsvPrev()">${opts}</select></div>
+      <div class="map-group"><label>Amount Format</label>
+        <select id="mMode" onchange="onModeChg()">
           <option value="single">Single amount column</option>
-          <option value="dc">Separate debit / credit columns</option>
+          <option value="dc">Separate debit / credit</option>
         </select>
       </div>
-      <div class="map-group" id="mAmtWrap">
-        <label>Amount Column</label>
-        <select id="mAmt" onchange="updateCsvPreview()">${opts}</select>
-      </div>
-      <div class="map-group" id="mDebitWrap" style="display:none">
-        <label>Debit (Expense) Column</label>
-        <select id="mDebit" onchange="updateCsvPreview()">${opts}</select>
-      </div>
-      <div class="map-group" id="mCreditWrap" style="display:none">
-        <label>Credit (Income) Column</label>
-        <select id="mCredit" onchange="updateCsvPreview()">${opts}</select>
-      </div>`;
+      <div class="map-group" id="mAmtW"><label>Amount Column</label><select id="mAmt" onchange="updateCsvPrev()">${opts}</select></div>
+      <div class="map-group" id="mDebW" style="display:none"><label>Debit Column</label><select id="mDeb" onchange="updateCsvPrev()">${opts}</select></div>
+      <div class="map-group" id="mCreW" style="display:none"><label>Credit Column</label><select id="mCre" onchange="updateCsvPrev()">${opts}</select></div>
+      <div class="map-group"><label>Assign to Account</label><select id="mAcct">${aOpts}</select></div>`;
 
-    if (dateI   >= 0) document.getElementById('mDate').value  = dateI;
-    if (descI   >= 0) document.getElementById('mDesc').value  = descI;
-    if (amtI    >= 0) document.getElementById('mAmt').value   = amtI;
-    if (debitI  >= 0) document.getElementById('mDebit').value = debitI;
-    if (creditI >= 0) document.getElementById('mCredit').value = creditI;
-    if (hasDebitCredit) { document.getElementById('mMode').value = 'dc'; onModeChange(); }
-    else updateCsvPreview();
+    if (di  >= 0) document.getElementById('mDate').value = di;
+    if (xi  >= 0) document.getElementById('mDesc').value = xi;
+    if (ai  >= 0) document.getElementById('mAmt').value  = ai;
+    if (dbi >= 0) document.getElementById('mDeb').value  = dbi;
+    if (cri >= 0) document.getElementById('mCre').value  = cri;
+    if (hasDC) { document.getElementById('mMode').value = 'dc'; onModeChg(); }
+    else updateCsvPrev();
   }
 
-  function onModeChange() {
+  function onModeChg() {
     const dc = document.getElementById('mMode').value === 'dc';
-    document.getElementById('mAmtWrap').style.display   = dc ? 'none' : '';
-    document.getElementById('mDebitWrap').style.display = dc ? '' : 'none';
-    document.getElementById('mCreditWrap').style.display = dc ? '' : 'none';
-    updateCsvPreview();
+    document.getElementById('mAmtW').style.display = dc ? 'none' : '';
+    document.getElementById('mDebW').style.display = dc ? '' : 'none';
+    document.getElementById('mCreW').style.display = dc ? '' : 'none';
+    updateCsvPrev();
   }
 
   function buildImportRows() {
     const di = +document.getElementById('mDate').value;
     const xi = +document.getElementById('mDesc').value;
     const dc = document.getElementById('mMode').value === 'dc';
-    const results = [];
+    const out = [];
     for (const row of csvRows) {
-      const dateStr = parseDate(row[di]);
-      if (!dateStr) continue;
-      const desc = (row[xi] || '').trim();
-      if (!desc) continue;
+      const ds = parseDateStr(row[di]); if (!ds) continue;
+      const desc = (row[xi]||'').trim(); if (!desc) continue;
       let amount, type;
       if (!dc) {
-        const raw = parseAmount(row[+document.getElementById('mAmt').value]);
+        const raw = parseAmt(row[+document.getElementById('mAmt').value]);
         if (raw === null) continue;
         amount = Math.abs(raw); type = raw < 0 ? 'expense' : 'income';
       } else {
-        const deb = parseAmount(row[+document.getElementById('mDebit').value]);
-        const cre = parseAmount(row[+document.getElementById('mCredit').value]);
-        if (deb !== null && Math.abs(deb) > 0) { amount = Math.abs(deb); type = 'expense'; }
-        else if (cre !== null && Math.abs(cre) > 0) { amount = Math.abs(cre); type = 'income'; }
+        const d = parseAmt(row[+document.getElementById('mDeb').value]);
+        const c = parseAmt(row[+document.getElementById('mCre').value]);
+        if (d !== null && Math.abs(d) > 0) { amount = Math.abs(d); type = 'expense'; }
+        else if (c !== null && Math.abs(c) > 0) { amount = Math.abs(c); type = 'income'; }
         else continue;
       }
-      results.push({ dateStr, desc, amount, type });
+      out.push({ ds, desc, amount, type });
     }
-    return results;
+    return out;
   }
 
-  function updateCsvPreview() {
+  function updateCsvPrev() {
     const rows = buildImportRows();
-    const preview = rows.slice(0, 5);
-    document.getElementById('importCount').textContent =
-      `${rows.length} transaction${rows.length !== 1 ? 's' : ''} detected`;
-    if (preview.length === 0) {
-      document.getElementById('previewArea').innerHTML =
-        '<p style="font-size:0.82rem;color:#bbb;margin:0.5rem 0">No valid rows detected — check column mapping.</p>';
+    document.getElementById('importCount').textContent = `${rows.length} transaction${rows.length!==1?'s':''} detected`;
+    const p = rows.slice(0,5);
+    if (!p.length) {
+      document.getElementById('previewArea').innerHTML = '<p style="font-size:0.81rem;color:#bbb;margin:0.5rem 0">No valid rows — check column mapping.</p>';
       return;
     }
     document.getElementById('previewArea').innerHTML = `
-      <table class="preview-table">
-        <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th></tr></thead>
-        <tbody>
-          ${preview.map(r => `
-            <tr>
-              <td>${r.dateStr}</td>
-              <td>${esc(r.desc)}</td>
-              <td>${fmt(r.amount)}</td>
-              <td style="color:${r.type==='income'?'#10b981':'#ef4444'}">${r.type}</td>
-            </tr>`).join('')}
-          ${rows.length > 5 ? `<tr><td colspan="4" style="color:#bbb;text-align:center;font-style:italic">…and ${rows.length-5} more</td></tr>` : ''}
-        </tbody>
-      </table>`;
+      <table class="preview-table"><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th></tr></thead><tbody>
+        ${p.map(r=>`<tr><td>${r.ds}</td><td>${esc(r.desc)}</td><td>${fmt(r.amount)}</td><td style="color:${r.type==='income'?'#10b981':'#ef4444'}">${r.type}</td></tr>`).join('')}
+        ${rows.length>5?`<tr><td colspan="4" style="color:#bbb;text-align:center;font-style:italic">…and ${rows.length-5} more</td></tr>`:''}
+      </tbody></table>`;
   }
 
   function doImport() {
     const rows = buildImportRows();
-    if (!rows.length) { alert('No valid transactions to import. Check column mapping.'); return; }
-    const all = load();
-    rows.forEach((r, i) => all.push({
-      id: Date.now() + i,
-      description: r.desc, amount: r.amount,
-      type: r.type, category: r.type === 'income' ? 'Income' : 'Other',
-      date: r.dateStr
+    if (!rows.length) { alert('No valid transactions to import.'); return; }
+    const acct = document.getElementById('mAcct').value;
+    const all  = load();
+    rows.forEach((r,i) => all.push({
+      id: Date.now()+i, description: r.desc, amount: r.amount,
+      type: r.type, category: r.type==='income'?'Venmo/Zelle':'Miscellaneous',
+      account: acct, date: r.ds
     }));
-    save(all);
-    render();
+    save(all); render();
     document.getElementById('csvFile').value = '';
     document.getElementById('mapArea').style.display = 'none';
-    csvRows = []; csvHeaders = [];
-    alert(`Imported ${rows.length} transaction${rows.length !== 1 ? 's' : ''} successfully.`);
+    csvRows=[]; csvHeaders=[];
+    alert(`Imported ${rows.length} transaction${rows.length!==1?'s':''} successfully.`);
   }
 
-  // --- Init ---
+  // ── Init ──
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
-  document.getElementById('monthLabel').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
-  setType('expense');
+  document.getElementById('yearLabel').textContent = viewYear;
+  setTxType('expense');
   render();
 </script>
 </body>
