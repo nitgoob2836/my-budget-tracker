@@ -780,7 +780,7 @@
 
   function txRow(t, showAcct = true) {
     const ds   = new Date(t.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    const sign = t.type === 'income' ? '+' : '';
+    const sign = t.type === 'income' ? '+' : '−';
     const clr  = t.type === 'income' ? 'c-green' : 'c-red';
     const dot  = t.type === 'income' ? '#10b981' : '#ef4444';
     return `<div class="tx-item">
