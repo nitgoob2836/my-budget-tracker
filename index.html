@@ -214,9 +214,31 @@
     .map-group label { display: block; font-size: 0.74rem; font-weight: 600; color: var(--muted); margin-bottom: 0.28rem; }
     .map-group select { width: 100%; padding: 0.48rem 0.65rem; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.83rem; outline: none; background: white; color: var(--text); }
     .map-group select:focus { border-color: var(--blue); }
-    .preview-table { width: 100%; border-collapse: collapse; font-size: 0.79rem; margin: 0.65rem 0; display: block; overflow-x: auto; }
-    .preview-table th { background: #f9fafb; font-weight: 600; color: var(--muted); padding: 0.38rem 0.6rem; text-align: left; border-bottom: 1.5px solid var(--border); white-space: nowrap; }
-    .preview-table td { padding: 0.38rem 0.6rem; border-bottom: 1px solid #f5f5f5; color: #444; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    .date-range-row { display: flex; gap: 0.75rem; margin-top: 0.25rem; flex-wrap: wrap; }
+    .date-range-row .map-group { flex: 1; min-width: 140px; }
+    .date-range-row .map-group input {
+      width: 100%; padding: 0.48rem 0.65rem; border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 0.83rem; outline: none; background: white; color: var(--text);
+    }
+    .date-range-row .map-group input:focus { border-color: var(--blue); }
+    .csv-scroll {
+      max-height: 300px; overflow-y: auto;
+      border: 1px solid var(--border); border-radius: 10px; margin: 0.75rem 0;
+    }
+    .csv-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.42rem 0.75rem; border-bottom: 1px solid #f5f5f5; font-size: 0.81rem;
+    }
+    .csv-row:last-child { border-bottom: none; }
+    .csv-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .csv-date { color: var(--muted); white-space: nowrap; flex-shrink: 0; min-width: 58px; }
+    .csv-desc { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-weight: 500; }
+    .csv-amt { font-weight: 600; white-space: nowrap; flex-shrink: 0; min-width: 72px; text-align: right; }
+    .csv-rm {
+      background: none; border: none; color: #d1d5db; cursor: pointer;
+      font-size: 1rem; padding: 1px 4px; border-radius: 4px; flex-shrink: 0; line-height: 1;
+    }
+    .csv-rm:hover { color: var(--red); background: #fef2f2; }
     .import-btn { padding: 0.6rem 1.3rem; background: var(--dark); color: white; border: none; border-radius: 9px; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
     .import-btn:hover { background: #2e2e50; }
     .import-note { font-size: 0.76rem; color: var(--light); margin-top: 0.5rem; }
@@ -332,8 +354,18 @@
       <!-- Step 2: map columns -->
       <div id="mapArea" style="display:none">
         <div class="map-grid" id="mapGrid"></div>
+        <div class="date-range-row">
+          <div class="map-group">
+            <label>From Date (optional)</label>
+            <input type="date" id="rangeFrom" onchange="updateCsvPrev()">
+          </div>
+          <div class="map-group">
+            <label>To Date (optional)</label>
+            <input type="date" id="rangeTo" onchange="updateCsvPrev()">
+          </div>
+        </div>
         <div id="previewArea"></div>
-        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:0.25rem">
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:0.5rem">
           <button class="import-btn" onclick="doImport()">Import Transactions</button>
           <span id="importCount" style="font-size:0.83rem;color:var(--muted)"></span>
         </div>
@@ -752,7 +784,7 @@
   };
 
   // ── CSV Import ──
-  let csvRows = [], csvHeaders = [];
+  let csvRows = [], csvHeaders = [], csvPreviewRows = [], pendingImportRows = [];
 
   function toggleImport() {
     const body = document.getElementById('importBody');
@@ -821,7 +853,7 @@
     document.getElementById('mapArea').style.display = 'none';
     document.getElementById('csvNewRow').style.display = 'none';
     document.getElementById('csvFile').value = '';
-    csvRows = []; csvHeaders = [];
+    csvRows = []; csvHeaders = []; csvPreviewRows = [];
   }
 
   function renderCsvMapping() {
@@ -888,34 +920,89 @@
     return out;
   }
 
-  function updateCsvPrev() {
-    const rows = buildImportRows();
-    document.getElementById('importCount').textContent = `${rows.length} transaction${rows.length!==1?'s':''} detected`;
-    const p = rows.slice(0,5);
-    if (!p.length) {
-      document.getElementById('previewArea').innerHTML = '<p style="font-size:0.81rem;color:#bbb;margin:0.5rem 0">No valid rows — check column mapping.</p>';
+  function renderCsvPreview() {
+    const rows = csvPreviewRows;
+    document.getElementById('importCount').textContent =
+      `${rows.length} transaction${rows.length !== 1 ? 's' : ''} ready to import`;
+    if (!rows.length) {
+      document.getElementById('previewArea').innerHTML =
+        '<p style="font-size:0.81rem;color:#bbb;margin:0.5rem 0">No transactions match — adjust column mapping or date range.</p>';
       return;
     }
-    document.getElementById('previewArea').innerHTML = `
-      <table class="preview-table"><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th></tr></thead><tbody>
-        ${p.map(r=>`<tr><td>${r.ds}</td><td>${esc(r.desc)}</td><td>${fmt(r.amount)}</td><td style="color:${r.type==='income'?'#10b981':'#ef4444'}">${r.type}</td></tr>`).join('')}
-        ${rows.length>5?`<tr><td colspan="4" style="color:#bbb;text-align:center;font-style:italic">…and ${rows.length-5} more</td></tr>`:''}
-      </tbody></table>`;
+    document.getElementById('previewArea').innerHTML =
+      `<div class="csv-scroll">${rows.map((r, i) => {
+        const clr = r.type === 'income' ? '#10b981' : '#ef4444';
+        return `<div class="csv-row">
+          <span class="csv-dot" style="background:${clr}"></span>
+          <span class="csv-date">${r.ds}</span>
+          <span class="csv-desc">${esc(r.desc)}</span>
+          <span class="csv-amt" style="color:${clr}">${r.type==='income'?'+':'−'}${fmt(r.amount)}</span>
+          <button class="csv-rm" onclick="removeCsvRow(${i})" title="Remove">×</button>
+        </div>`;
+      }).join('')}</div>`;
+  }
+
+  function updateCsvPrev() {
+    let rows = buildImportRows();
+    const from = document.getElementById('rangeFrom') && document.getElementById('rangeFrom').value;
+    const to   = document.getElementById('rangeTo')   && document.getElementById('rangeTo').value;
+    if (from) rows = rows.filter(r => r.ds >= from);
+    if (to)   rows = rows.filter(r => r.ds <= to);
+    csvPreviewRows = rows;
+    renderCsvPreview();
+  }
+
+  function removeCsvRow(i) {
+    csvPreviewRows.splice(i, 1);
+    renderCsvPreview();
+  }
+
+  function isDuplicate(r) {
+    return load().some(t =>
+      t.date === r.ds &&
+      Math.abs(t.amount - r.amount) < 0.005 &&
+      t.description.toLowerCase().trim() === r.desc.toLowerCase().trim()
+    );
   }
 
   function doImport() {
-    const rows = buildImportRows();
-    if (!rows.length) { alert('No valid transactions to import.'); return; }
+    if (!csvPreviewRows.length) { alert('No transactions to import.'); return; }
+    const dups = csvPreviewRows.filter(r => isDuplicate(r));
+    if (dups.length) {
+      pendingImportRows = [...csvPreviewRows];
+      document.getElementById('dupMsg').textContent =
+        `${dups.length} transaction${dups.length !== 1 ? 's' : ''} already exist in your tracker. What would you like to do?`;
+      document.getElementById('dupList').innerHTML = dups.map(r => {
+        const clr = r.type === 'income' ? '#10b981' : '#ef4444';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.75rem;border-bottom:1px solid #f5f5f5;font-size:0.81rem">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:0.5rem">${r.ds} · ${esc(r.desc)}</span>
+          <span style="color:${clr};font-weight:600;white-space:nowrap">${r.type==='income'?'+':'−'}${fmt(r.amount)}</span>
+        </div>`;
+      }).join('');
+      document.getElementById('dupOverlay').style.display = 'flex';
+      return;
+    }
+    finalizeImport(csvPreviewRows);
+  }
+
+  function closeDupModal() {
+    document.getElementById('dupOverlay').style.display = 'none';
+    pendingImportRows = [];
+  }
+  function importSkipDups() { finalizeImport(pendingImportRows.filter(r => !isDuplicate(r))); closeDupModal(); }
+  function importAllDups()  { finalizeImport(pendingImportRows); closeDupModal(); }
+
+  function finalizeImport(rows) {
     const acct = document.getElementById('csvAcctSel').value;
     const all  = load();
-    rows.forEach((r,i) => all.push({
-      id: Date.now()+i, description: r.desc, amount: r.amount,
-      type: r.type, category: r.type==='income'?'Venmo/Zelle':'Miscellaneous',
+    rows.forEach((r, i) => all.push({
+      id: Date.now() + i, description: r.desc, amount: r.amount,
+      type: r.type, category: r.type === 'income' ? 'Venmo/Zelle' : 'Miscellaneous',
       account: acct, date: r.ds
     }));
     save(all); render();
     resetCsvImport();
-    alert(`Imported ${rows.length} transaction${rows.length!==1?'s':''} successfully.`);
+    alert(`Imported ${rows.length} transaction${rows.length !== 1 ? 's' : ''} successfully.`);
   }
 
   // ── Edit modal ──
@@ -964,7 +1051,7 @@
     render();
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDupModal(); } });
 
   // ── Init ──
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
@@ -972,5 +1059,20 @@
   setTxType('expense');
   render();
 </script>
+<!-- Duplicate warning modal -->
+<div id="dupOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeDupModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Duplicate Transactions Found</h3>
+      <button class="modal-close" onclick="closeDupModal()">×</button>
+    </div>
+    <p id="dupMsg" style="font-size:0.86rem;color:var(--muted);margin-bottom:0.75rem"></p>
+    <div id="dupList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:1rem"></div>
+    <div class="modal-actions">
+      <button class="cancel-btn" onclick="importSkipDups()">Skip Duplicates</button>
+      <button class="save-btn" onclick="importAllDups()">Include All</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
