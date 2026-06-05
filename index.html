@@ -497,13 +497,7 @@
     <div class="panel">
       <div class="panel-inner">
         <h2>Transactions</h2>
-        <div style="display:flex;flex-direction:column;align-items:flex-start;gap:0.5rem;margin-bottom:0.75rem">
-          <div class="view-toggle">
-            <button id="vByMonth" class="active" onclick="setGroupBy('month')">By Month</button>
-            <button id="vByAcct" onclick="setGroupBy('account')">By Account</button>
-          </div>
-          <div id="monthTabs" style="display:flex;flex-wrap:wrap;gap:0.35rem"></div>
-        </div>
+        <div id="monthTabs" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.75rem"></div>
         <div class="select-bar">
           <label>
             <input type="checkbox" id="selectAllCb" class="tx-cb" onchange="toggleSelectAll()">
@@ -703,7 +697,7 @@
   let filterMonth   = -1;
   let filterAccount = null;
   let chipAccounts  = [];
-  let groupBy       = 'month';
+  let groupBy       = 'account';
   let barChart      = null;
 
   const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
