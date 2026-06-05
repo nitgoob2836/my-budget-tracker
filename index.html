@@ -143,6 +143,16 @@
     .tx-right { text-align: right; flex-shrink: 0; }
     .tx-amt { font-weight: 600; font-size: 0.88rem; }
     .tx-acct { font-size: 0.71rem; color: var(--light); }
+    .tx-type-btns { display: flex; gap: 4px; flex-shrink: 0; }
+    .tx-type-btn {
+      padding: 0.18rem 0.45rem; border-radius: 5px; border: 1.5px solid;
+      font-size: 0.7rem; font-weight: 600; cursor: pointer; background: none;
+      transition: all 0.12s; white-space: nowrap;
+    }
+    .tx-type-btn.inc { border-color: var(--green); color: var(--green); }
+    .tx-type-btn.inc.on { background: var(--green); color: white; }
+    .tx-type-btn.exp { border-color: var(--red); color: var(--red); }
+    .tx-type-btn.exp.on { background: var(--red); color: white; }
     .tx-del {
       background: none; border: none; color: #d1d5db;
       cursor: pointer; font-size: 1rem; padding: 2px 5px; border-radius: 4px; flex-shrink: 0;
@@ -636,6 +646,14 @@
     renderTxList(yearTx());
   }
 
+  function setTxTypeTo(id, type) {
+    const cats = type === 'expense' ? EXP_CATS : INC_CATS;
+    save(load().map(t => t.id !== id ? t : {
+      ...t, type, category: cats.includes(t.category) ? t.category : cats[0]
+    }));
+    render();
+  }
+
   function txRow(t, showAcct = true) {
     const ds   = new Date(t.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
     const sign = t.type === 'income' ? '+' : '−';
@@ -649,6 +667,10 @@
       </div>
       <div class="tx-right">
         <div class="tx-amt ${clr}">${sign}${fmt(t.amount)}</div>
+      </div>
+      <div class="tx-type-btns">
+        <button class="tx-type-btn inc${t.type==='income'?' on':''}" onclick="setTxTypeTo(${t.id},'income')">Income</button>
+        <button class="tx-type-btn exp${t.type==='expense'?' on':''}" onclick="setTxTypeTo(${t.id},'expense')">Expense</button>
       </div>
       <button class="tx-edit" onclick="openEditModal(${t.id})" title="Edit">✎</button>
       <button class="tx-del" onclick="deleteById(${t.id})" title="Delete">×</button>
