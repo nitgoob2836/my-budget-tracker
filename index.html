@@ -780,7 +780,7 @@
 
   function txRow(t, showAcct = true) {
     const ds   = new Date(t.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    const sign = t.type === 'income' ? '+' : '';
+    const sign = t.sign !== undefined ? t.sign : (t.type === 'income' ? '+' : '−');
     const clr  = t.type === 'income' ? 'c-green' : 'c-red';
     const dot  = t.type === 'income' ? '#10b981' : '#ef4444';
     return `<div class="tx-item">
@@ -871,7 +871,7 @@
       description: desc, amount, type: txType,
       category: document.getElementById('fCat').value,
       account:  document.getElementById('fAcct').value,
-      date
+      date, sign: txType === 'income' ? '+' : '−'
     });
     save(all);
     e.target.reset();
@@ -1000,19 +1000,19 @@
     for (const row of csvRows) {
       const ds = parseDateStr(row[di]); if (!ds) continue;
       const desc = (row[xi]||'').trim(); if (!desc) continue;
-      let amount, type;
+      let amount, type, sign;
       if (!dc) {
         const raw = parseAmt(row[+document.getElementById('mAmt').value]);
         if (raw === null) continue;
-        amount = Math.abs(raw); type = raw < 0 ? 'expense' : 'income';
+        amount = Math.abs(raw); type = raw < 0 ? 'expense' : 'income'; sign = raw < 0 ? '−' : '+';
       } else {
         const d = parseAmt(row[+document.getElementById('mDeb').value]);
         const c = parseAmt(row[+document.getElementById('mCre').value]);
-        if (d !== null && Math.abs(d) > 0) { amount = Math.abs(d); type = 'expense'; }
-        else if (c !== null && Math.abs(c) > 0) { amount = Math.abs(c); type = 'income'; }
+        if (d !== null && Math.abs(d) > 0) { amount = Math.abs(d); type = 'expense'; sign = '−'; }
+        else if (c !== null && Math.abs(c) > 0) { amount = Math.abs(c); type = 'income'; sign = '+'; }
         else continue;
       }
-      out.push({ ds, desc, amount, type });
+      out.push({ ds, desc, amount, type, sign });
     }
     return out;
   }
@@ -1035,7 +1035,7 @@
           <span class="csv-dot" style="background:${clr}"></span>
           <span class="csv-date">${r.ds}</span>
           <span class="csv-desc">${esc(r.desc)}</span>
-          <span class="csv-amt" style="color:${clr}">${r.type==='income'?'+':'−'}${fmt(r.amount)}</span>
+          <span class="csv-amt" style="color:${clr}">${r.sign||''}${fmt(r.amount)}</span>
           <button class="csv-rm" onclick="removeCsvRow(${i})" title="Remove">×</button>
         </div>`;
       }).join('')}</div>`;
@@ -1084,7 +1084,7 @@
         const clr = r.type === 'income' ? '#10b981' : '#ef4444';
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.75rem;border-bottom:1px solid #f5f5f5;font-size:0.81rem">
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:0.5rem">${r.ds} · ${esc(r.desc)}</span>
-          <span style="color:${clr};font-weight:600;white-space:nowrap">${r.type==='income'?'+':'−'}${fmt(r.amount)}</span>
+          <span style="color:${clr};font-weight:600;white-space:nowrap">${r.sign||''}${fmt(r.amount)}</span>
         </div>`;
       }).join('');
       document.getElementById('dupOverlay').style.display = 'flex';
@@ -1106,7 +1106,7 @@
     rows.forEach((r, i) => all.push({
       id: Date.now() + i, description: r.desc, amount: r.amount,
       type: r.type, category: r.type === 'income' ? 'Venmo/Zelle' : 'Miscellaneous',
-      account: acct, date: r.ds
+      account: acct, date: r.ds, sign: r.sign || (r.type === 'income' ? '+' : '−')
     }));
     save(all); render();
     resetCsvImport();
