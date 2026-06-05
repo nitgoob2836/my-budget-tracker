@@ -140,6 +140,12 @@
     .tx-info { flex: 1; min-width: 0; }
     .tx-info .desc { font-weight: 500; font-size: 0.87rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tx-info .meta { font-size: 0.72rem; color: var(--light); margin-top: 1px; }
+    .cat-select {
+      border: none; background: none; font-size: 0.72rem; color: var(--light);
+      font-family: inherit; cursor: pointer; padding: 0; outline: none;
+      max-width: 120px;
+    }
+    .cat-select:hover, .cat-select:focus { color: var(--text); }
     .tx-right { text-align: right; flex-shrink: 0; }
     .tx-amt { font-weight: 600; font-size: 0.88rem; }
     .tx-acct { font-size: 0.71rem; color: var(--light); }
@@ -786,6 +792,11 @@
     render();
   }
 
+  function setCatFor(id, cat) {
+    save(load().map(t => t.id !== id ? t : { ...t, category: cat }));
+    render();
+  }
+
   function txRow(t, showAcct = true) {
     const ds   = new Date(t.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
     const sign = t.sign !== undefined ? t.sign : (t.type === 'income' ? '+' : '−');
@@ -796,7 +807,7 @@
       <div class="tx-dot" style="background:${dot}"></div>
       <div class="tx-info">
         <div class="desc">${esc(t.description)}</div>
-        <div class="meta">${esc(t.category)} · ${ds}${showAcct && t.account ? ' · <strong>' + esc(t.account) + '</strong>' : ''}</div>
+        <div class="meta"><select class="cat-select" onchange="setCatFor(${t.id},this.value)">${(t.type==='income'?INC_CATS:EXP_CATS).map(c=>`<option value="${esc(c)}"${c===t.category?' selected':''}>${esc(c)}</option>`).join('')}</select> · ${ds}${showAcct && t.account ? ' · <strong>' + esc(t.account) + '</strong>' : ''}</div>
       </div>
       <div class="tx-right">
         <div class="tx-amt ${clr}">${sign}${fmt(t.amount)}</div>
