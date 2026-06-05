@@ -146,6 +146,35 @@
       max-width: 120px;
     }
     .cat-select:hover, .cat-select:focus { color: var(--text); }
+    .cat-manage-btn {
+      padding: 0.25rem 0.65rem; background: none; color: var(--muted);
+      border: 1.5px solid var(--border); border-radius: 6px;
+      font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .cat-manage-btn:hover { border-color: var(--dark); color: var(--dark); }
+    .cat-section-lbl {
+      font-size: 0.73rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--light); margin: 1rem 0 0.5rem;
+    }
+    .cat-section-lbl:first-of-type { margin-top: 0; }
+    .cat-edit-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
+    .cat-edit-input {
+      flex: 1; padding: 0.42rem 0.65rem;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 0.84rem; outline: none; color: var(--text);
+    }
+    .cat-edit-input:focus { border-color: var(--blue); }
+    .cat-rm-btn {
+      background: none; border: none; color: #d1d5db;
+      cursor: pointer; font-size: 1rem; padding: 2px 6px; border-radius: 4px;
+    }
+    .cat-rm-btn:hover { color: var(--red); background: #fef2f2; }
+    .cat-add-btn {
+      width: 100%; padding: 0.4rem; background: none;
+      border: 1.5px dashed var(--border); border-radius: 8px;
+      font-size: 0.82rem; color: var(--muted); cursor: pointer; margin-top: 0.25rem;
+    }
+    .cat-add-btn:hover { border-color: var(--dark); color: var(--dark); }
     .tx-right { text-align: right; flex-shrink: 0; }
     .tx-amt { font-weight: 600; font-size: 0.88rem; }
     .tx-acct { font-size: 0.71rem; color: var(--light); }
@@ -431,7 +460,10 @@
   <div class="middle-row">
     <div class="panel">
       <div class="panel-inner">
-        <h2>Spending by Category</h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <h2 style="margin-bottom:0">Category</h2>
+          <button class="cat-manage-btn" onclick="openCatModal()">Add / Edit</button>
+        </div>
         <table class="data-table">
           <thead><tr><th>Category</th><th class="num">Amount</th></tr></thead>
           <tbody id="catBody"></tbody>
@@ -559,6 +591,10 @@
   ];
 
   const ACCTS_KEY = 'budget_accounts';
+  const CATS_KEY  = 'budget_cats';
+  function getExpCats() { const s = JSON.parse(localStorage.getItem(CATS_KEY)||'null'); return s ? s.exp : [...EXP_CATS]; }
+  function getIncCats() { const s = JSON.parse(localStorage.getItem(CATS_KEY)||'null'); return s ? s.inc : [...INC_CATS]; }
+  function persistCats(exp, inc) { localStorage.setItem(CATS_KEY, JSON.stringify({ exp, inc })); }
   function getAccounts() {
     const custom = JSON.parse(localStorage.getItem(ACCTS_KEY) || '[]');
     return [...ACCOUNTS, ...custom.filter(a => !ACCOUNTS.includes(a))];
@@ -670,7 +706,7 @@
     txType = type;
     document.getElementById('expBtn').className = type === 'expense' ? 'active exp-btn' : 'exp-btn';
     document.getElementById('incBtn').className  = type === 'income'  ? 'active inc-btn' : 'inc-btn';
-    const cats = type === 'expense' ? EXP_CATS : INC_CATS;
+    const cats = type === 'expense' ? getExpCats() : getIncCats();
     document.getElementById('fCat').innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
   }
 
@@ -734,12 +770,13 @@
   }
 
   function renderCatTable(txs) {
+    const expCats = getExpCats();
     const byCat = {};
-    EXP_CATS.forEach(c => { byCat[c] = 0; });
-    txs.filter(t => t.type === 'expense').forEach(t => { if (byCat[t.category] !== undefined) byCat[t.category] += t.amount; });
+    expCats.forEach(c => { byCat[c] = 0; });
+    txs.filter(t => t.type === 'expense').forEach(t => { if (byCat[t.category] !== undefined) byCat[t.category] += t.amount; else byCat[t.category] = t.amount; });
     txs.filter(t => t.type === 'return').forEach(t =>  { if (byCat[t.category] !== undefined) byCat[t.category] -= t.amount; });
 
-    const rows  = EXP_CATS.map(c => ({ c, a: byCat[c] })).filter(r => r.a > 0).sort((a,b) => b.a - a.a);
+    const rows  = Object.entries(byCat).map(([c,a]) => ({ c, a })).filter(r => r.a > 0).sort((a,b) => b.a - a.a);
     const total = rows.reduce((s, r) => s + r.a, 0);
     const tbody = document.getElementById('catBody');
     if (!rows.length) {
@@ -785,7 +822,7 @@
   }
 
   function setTxTypeTo(id, type) {
-    const cats = type === 'income' ? INC_CATS : EXP_CATS;
+    const cats = type === 'income' ? getIncCats() : getExpCats();
     save(load().map(t => t.id !== id ? t : {
       ...t, type, category: cats.includes(t.category) ? t.category : cats[0]
     }));
@@ -807,7 +844,7 @@
       <div class="tx-dot" style="background:${dot}"></div>
       <div class="tx-info">
         <div class="desc">${esc(t.description)}</div>
-        <div class="meta"><select class="cat-select" onchange="setCatFor(${t.id},this.value)">${(t.type==='income'?INC_CATS:EXP_CATS).map(c=>`<option value="${esc(c)}"${c===t.category?' selected':''}>${esc(c)}</option>`).join('')}</select> · ${ds}${showAcct && t.account ? ' · <strong>' + esc(t.account) + '</strong>' : ''}</div>
+        <div class="meta"><select class="cat-select" onchange="setCatFor(${t.id},this.value)">${(t.type==='income'?getIncCats():getExpCats()).map(c=>`<option value="${esc(c)}"${c===t.category?' selected':''}>${esc(c)}</option>`).join('')}</select> · ${ds}${showAcct && t.account ? ' · <strong>' + esc(t.account) + '</strong>' : ''}</div>
       </div>
       <div class="tx-right">
         <div class="tx-amt ${clr}">${sign}${fmt(t.amount)}</div>
@@ -1162,7 +1199,7 @@
     editType = type;
     document.getElementById('eExpBtn').className = type === 'expense' ? 'active exp-btn' : 'exp-btn';
     document.getElementById('eIncBtn').className  = type === 'income'  ? 'active inc-btn' : 'inc-btn';
-    const cats = type === 'expense' ? EXP_CATS : INC_CATS;
+    const cats = type === 'expense' ? getExpCats() : getIncCats();
     document.getElementById('eCat').innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
   }
 
@@ -1181,7 +1218,50 @@
     render();
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDupModal(); } });
+  // ── Category modal ──
+  function openCatModal() {
+    const mkRows = cats => cats.map(c => `
+      <div class="cat-edit-row">
+        <input type="text" class="cat-edit-input" value="${esc(c)}" data-original="${esc(c)}">
+        <button class="cat-rm-btn" onclick="this.closest('.cat-edit-row').remove()" title="Remove">×</button>
+      </div>`).join('');
+    document.getElementById('catExpList').innerHTML = mkRows(getExpCats());
+    document.getElementById('catIncList').innerHTML = mkRows(getIncCats());
+    document.getElementById('catOverlay').style.display = 'flex';
+  }
+
+  function addCatField(section) {
+    const list = document.getElementById(section === 'exp' ? 'catExpList' : 'catIncList');
+    const row  = document.createElement('div');
+    row.className = 'cat-edit-row';
+    row.innerHTML = `<input type="text" class="cat-edit-input" placeholder="New category…">
+      <button class="cat-rm-btn" onclick="this.closest('.cat-edit-row').remove()">×</button>`;
+    list.appendChild(row);
+    row.querySelector('input').focus();
+  }
+
+  function saveCatEdits() {
+    const readList = id => [...document.querySelectorAll(`#${id} .cat-edit-input`)]
+      .map(inp => ({ old: inp.dataset.original || '', val: inp.value.trim() }))
+      .filter(e => e.val);
+    const expEdits = readList('catExpList');
+    const incEdits = readList('catIncList');
+    const newExp = expEdits.map(e => e.val);
+    const newInc = incEdits.map(e => e.val);
+    // Build rename map
+    const renames = {};
+    [...expEdits, ...incEdits].forEach(e => { if (e.old && e.val !== e.old) renames[e.old] = e.val; });
+    if (Object.keys(renames).length) {
+      save(load().map(t => renames[t.category] ? { ...t, category: renames[t.category] } : t));
+    }
+    persistCats(newExp, newInc);
+    closeCatModal();
+    render();
+  }
+
+  function closeCatModal() { document.getElementById('catOverlay').style.display = 'none'; }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDupModal(); closeCatModal(); } });
 
   // ── Init ──
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
@@ -1189,6 +1269,26 @@
   setTxType('expense');
   render();
 </script>
+<!-- Category manage modal -->
+<div id="catOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeCatModal()">
+  <div class="modal" style="width:min(500px,92vw)">
+    <div class="modal-header">
+      <h3>Manage Categories</h3>
+      <button class="modal-close" onclick="closeCatModal()">×</button>
+    </div>
+    <p class="cat-section-lbl">Expense &amp; Return Categories</p>
+    <div id="catExpList"></div>
+    <button class="cat-add-btn" onclick="addCatField('exp')">+ Add expense category</button>
+    <p class="cat-section-lbl">Income Categories</p>
+    <div id="catIncList"></div>
+    <button class="cat-add-btn" onclick="addCatField('inc')">+ Add income category</button>
+    <div class="modal-actions" style="margin-top:1.25rem">
+      <button class="cancel-btn" onclick="closeCatModal()">Cancel</button>
+      <button class="save-btn" onclick="saveCatEdits()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Duplicate warning modal -->
 <div id="dupOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeDupModal()">
   <div class="modal">
