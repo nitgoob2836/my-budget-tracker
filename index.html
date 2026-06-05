@@ -165,6 +165,64 @@
     }
     .add-btn:hover { background: #2e2e50; }
 
+    /* CSV Import */
+    .import-panel {
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .import-toggle {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.5rem; background: none; border: none; cursor: pointer;
+      font-size: 0.88rem; font-weight: 600; color: #555; text-align: left;
+    }
+    .import-toggle:hover { background: #fafafa; }
+    .import-body { padding: 0 1.5rem 1.5rem; border-top: 1px solid #f0f0f0; }
+    .drop-zone {
+      border: 2px dashed #d1d5db; border-radius: 10px;
+      padding: 1.75rem; text-align: center; margin-top: 1rem;
+      transition: border-color 0.15s, background 0.15s; cursor: pointer;
+    }
+    .drop-zone.drag-over { border-color: #3b82f6; background: #eff6ff; }
+    .drop-zone p { color: #888; font-size: 0.85rem; }
+    .drop-zone .browse-btn { color: #3b82f6; background: none; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-decoration: underline; }
+    .map-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 0.75rem; margin: 1rem 0;
+    }
+    .map-group label { display: block; font-size: 0.75rem; font-weight: 600; color: #666; margin-bottom: 0.3rem; }
+    .map-group select {
+      width: 100%; padding: 0.5rem 0.7rem;
+      border: 1.5px solid #e5e7eb; border-radius: 8px;
+      font-size: 0.84rem; outline: none; background: white; color: #1a1a2e;
+    }
+    .map-group select:focus { border-color: #3b82f6; }
+    .preview-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.8rem; margin: 0.75rem 0;
+      display: block; overflow-x: auto;
+    }
+    .preview-table th {
+      background: #f9fafb; font-weight: 600; color: #555;
+      padding: 0.4rem 0.7rem; text-align: left;
+      border-bottom: 1.5px solid #e5e7eb; white-space: nowrap;
+    }
+    .preview-table td {
+      padding: 0.4rem 0.7rem; border-bottom: 1px solid #f3f3f3;
+      color: #444; white-space: nowrap; max-width: 220px;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .import-btn {
+      padding: 0.62rem 1.4rem; background: #1a1a2e; color: white;
+      border: none; border-radius: 9px; font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .import-btn:hover { background: #2e2e50; }
+    .import-note { font-size: 0.77rem; color: #aaa; margin-top: 0.6rem; }
+
     @media (max-width: 760px) {
       .summary-cards { grid-template-columns: 1fr; }
       .content-grid { grid-template-columns: 1fr; }
@@ -183,6 +241,34 @@
 </header>
 
 <main>
+  <div class="import-panel">
+    <button class="import-toggle" onclick="toggleImport()">
+      <span>⬆ Import Bank CSV</span>
+      <span id="importChevron" style="font-size:0.7rem;transition:transform 0.2s">▼</span>
+    </button>
+    <div class="import-body" id="importBody" style="display:none">
+      <div id="dropZone" class="drop-zone"
+           onclick="document.getElementById('csvFile').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="event.preventDefault();this.classList.remove('drag-over');handleCsvFile(event.dataTransfer.files[0])">
+        <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none"
+               onchange="handleCsvFile(this.files[0])">
+        <p>Drag &amp; drop your bank CSV here, or <span class="browse-btn">browse</span></p>
+        <p style="margin-top:0.4rem;font-size:0.77rem;color:#bbb">Supports Chase, Bank of America, Wells Fargo, and most bank exports</p>
+      </div>
+      <div id="mapArea" style="display:none">
+        <div class="map-grid" id="mapGrid"></div>
+        <div id="previewArea"></div>
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:0.25rem">
+          <button class="import-btn" onclick="doImport()">Import Transactions</button>
+          <span id="importCount" style="font-size:0.84rem;color:#666"></span>
+        </div>
+        <p class="import-note">Imported expenses are assigned to "Other" — you can change categories after import.</p>
+      </div>
+    </div>
+  </div>
+
   <div class="summary-cards">
     <div class="card income">
       <div class="label">Income</div>
@@ -413,6 +499,198 @@
     setType(txType);
     render();
   };
+
+  // --- CSV Import ---
+  let csvRows = [], csvHeaders = [];
+
+  function toggleImport() {
+    const body = document.getElementById('importBody');
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : '';
+    document.getElementById('importChevron').style.transform = open ? '' : 'rotate(180deg)';
+  }
+
+  function parseCSV(text) {
+    const rows = [];
+    const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const row = []; let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+        else if (c === ',' && !inQ) { row.push(cur.trim()); cur = ''; }
+        else cur += c;
+      }
+      row.push(cur.trim());
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function parseDate(str) {
+    str = (str || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+    m = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+    m = str.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    return null;
+  }
+
+  function parseAmount(str) {
+    if (!str) return null;
+    const cleaned = str.replace(/[$,\s]/g,'').replace(/\((.+)\)/,'-$1');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  }
+
+  function handleCsvFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const rows = parseCSV(e.target.result);
+      if (rows.length < 2) { alert('CSV appears empty or invalid.'); return; }
+      csvHeaders = rows[0];
+      csvRows = rows.slice(1).filter(r => r.some(c => c));
+      renderCsvMapping();
+    };
+    reader.readAsText(file);
+  }
+
+  function renderCsvMapping() {
+    document.getElementById('mapArea').style.display = '';
+    const hl = csvHeaders.map(h => h.toLowerCase());
+    const find = (...terms) => hl.findIndex(h => terms.some(t => h.includes(t)));
+
+    const dateI   = find('date');
+    const descI   = find('desc','memo','narr','payee','name');
+    const amtI    = find('amount');
+    const debitI  = find('debit','withdrawal','withdraw');
+    const creditI = find('credit','deposit');
+    const hasDebitCredit = debitI >= 0 && creditI >= 0;
+
+    const opts = csvHeaders.map((h,i) =>
+      `<option value="${i}">${h || 'Column '+(i+1)}</option>`).join('');
+
+    document.getElementById('mapGrid').innerHTML = `
+      <div class="map-group">
+        <label>Date Column</label>
+        <select id="mDate" onchange="updateCsvPreview()">${opts}</select>
+      </div>
+      <div class="map-group">
+        <label>Description Column</label>
+        <select id="mDesc" onchange="updateCsvPreview()">${opts}</select>
+      </div>
+      <div class="map-group">
+        <label>Amount Format</label>
+        <select id="mMode" onchange="onModeChange()">
+          <option value="single">Single amount column</option>
+          <option value="dc">Separate debit / credit columns</option>
+        </select>
+      </div>
+      <div class="map-group" id="mAmtWrap">
+        <label>Amount Column</label>
+        <select id="mAmt" onchange="updateCsvPreview()">${opts}</select>
+      </div>
+      <div class="map-group" id="mDebitWrap" style="display:none">
+        <label>Debit (Expense) Column</label>
+        <select id="mDebit" onchange="updateCsvPreview()">${opts}</select>
+      </div>
+      <div class="map-group" id="mCreditWrap" style="display:none">
+        <label>Credit (Income) Column</label>
+        <select id="mCredit" onchange="updateCsvPreview()">${opts}</select>
+      </div>`;
+
+    if (dateI   >= 0) document.getElementById('mDate').value  = dateI;
+    if (descI   >= 0) document.getElementById('mDesc').value  = descI;
+    if (amtI    >= 0) document.getElementById('mAmt').value   = amtI;
+    if (debitI  >= 0) document.getElementById('mDebit').value = debitI;
+    if (creditI >= 0) document.getElementById('mCredit').value = creditI;
+    if (hasDebitCredit) { document.getElementById('mMode').value = 'dc'; onModeChange(); }
+    else updateCsvPreview();
+  }
+
+  function onModeChange() {
+    const dc = document.getElementById('mMode').value === 'dc';
+    document.getElementById('mAmtWrap').style.display   = dc ? 'none' : '';
+    document.getElementById('mDebitWrap').style.display = dc ? '' : 'none';
+    document.getElementById('mCreditWrap').style.display = dc ? '' : 'none';
+    updateCsvPreview();
+  }
+
+  function buildImportRows() {
+    const di = +document.getElementById('mDate').value;
+    const xi = +document.getElementById('mDesc').value;
+    const dc = document.getElementById('mMode').value === 'dc';
+    const results = [];
+    for (const row of csvRows) {
+      const dateStr = parseDate(row[di]);
+      if (!dateStr) continue;
+      const desc = (row[xi] || '').trim();
+      if (!desc) continue;
+      let amount, type;
+      if (!dc) {
+        const raw = parseAmount(row[+document.getElementById('mAmt').value]);
+        if (raw === null) continue;
+        amount = Math.abs(raw); type = raw < 0 ? 'expense' : 'income';
+      } else {
+        const deb = parseAmount(row[+document.getElementById('mDebit').value]);
+        const cre = parseAmount(row[+document.getElementById('mCredit').value]);
+        if (deb !== null && Math.abs(deb) > 0) { amount = Math.abs(deb); type = 'expense'; }
+        else if (cre !== null && Math.abs(cre) > 0) { amount = Math.abs(cre); type = 'income'; }
+        else continue;
+      }
+      results.push({ dateStr, desc, amount, type });
+    }
+    return results;
+  }
+
+  function updateCsvPreview() {
+    const rows = buildImportRows();
+    const preview = rows.slice(0, 5);
+    document.getElementById('importCount').textContent =
+      `${rows.length} transaction${rows.length !== 1 ? 's' : ''} detected`;
+    if (preview.length === 0) {
+      document.getElementById('previewArea').innerHTML =
+        '<p style="font-size:0.82rem;color:#bbb;margin:0.5rem 0">No valid rows detected — check column mapping.</p>';
+      return;
+    }
+    document.getElementById('previewArea').innerHTML = `
+      <table class="preview-table">
+        <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th></tr></thead>
+        <tbody>
+          ${preview.map(r => `
+            <tr>
+              <td>${r.dateStr}</td>
+              <td>${esc(r.desc)}</td>
+              <td>${fmt(r.amount)}</td>
+              <td style="color:${r.type==='income'?'#10b981':'#ef4444'}">${r.type}</td>
+            </tr>`).join('')}
+          ${rows.length > 5 ? `<tr><td colspan="4" style="color:#bbb;text-align:center;font-style:italic">…and ${rows.length-5} more</td></tr>` : ''}
+        </tbody>
+      </table>`;
+  }
+
+  function doImport() {
+    const rows = buildImportRows();
+    if (!rows.length) { alert('No valid transactions to import. Check column mapping.'); return; }
+    const all = load();
+    rows.forEach((r, i) => all.push({
+      id: Date.now() + i,
+      description: r.desc, amount: r.amount,
+      type: r.type, category: r.type === 'income' ? 'Income' : 'Other',
+      date: r.dateStr
+    }));
+    save(all);
+    render();
+    document.getElementById('csvFile').value = '';
+    document.getElementById('mapArea').style.display = 'none';
+    csvRows = []; csvHeaders = [];
+    alert(`Imported ${rows.length} transaction${rows.length !== 1 ? 's' : ''} successfully.`);
+  }
 
   // --- Init ---
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
