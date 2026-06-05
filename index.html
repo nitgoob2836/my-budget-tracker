@@ -45,20 +45,22 @@
       text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 1rem;
     }
 
-    /* ── Summary cards ── */
-    .summary-row {
-      display: grid; grid-template-columns: repeat(3, 1fr);
+    /* ── Metrics panel ── */
+    .metrics-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 1rem; margin-bottom: 1.25rem;
     }
-    .stat-card {
+    .metric-card {
       background: var(--card); border-radius: 14px;
       padding: 1.25rem 1.5rem; box-shadow: 0 1px 6px rgba(0,0,0,0.07);
     }
-    .stat-card .lbl {
+    .metric-card .lbl {
       font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.07em; color: var(--light); margin-bottom: 0.35rem;
+      letter-spacing: 0.07em; color: var(--light); margin-bottom: 0.2rem;
     }
-    .stat-card .val { font-size: 2rem; font-weight: 700; }
+    .metric-card .sub { font-size: 0.68rem; color: var(--light); margin-bottom: 0.3rem; }
+    .metric-card .val { font-size: 1.75rem; font-weight: 700; }
     .c-green { color: var(--green); }
     .c-red   { color: var(--red);   }
     .c-blue  { color: var(--blue);  }
@@ -355,7 +357,7 @@
     .cancel-btn:hover { background: #e5e7eb; color: var(--text); }
 
     @media (max-width: 900px) {
-      .summary-row, .middle-row, .bottom-row { grid-template-columns: 1fr; }
+      .middle-row, .bottom-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -371,6 +373,32 @@
 </header>
 
 <main>
+
+  <!-- Metrics -->
+  <div class="metrics-panel">
+    <div class="metric-card">
+      <div class="lbl">Total Annual Income</div>
+      <div class="val c-green" id="mIncome">$0.00</div>
+    </div>
+    <div class="metric-card">
+      <div class="lbl">Total Annual Expenses</div>
+      <div class="val c-red" id="mExpenses">$0.00</div>
+    </div>
+    <div class="metric-card">
+      <div class="lbl">Net Profit</div>
+      <div class="val c-blue" id="mNet">$0.00</div>
+    </div>
+    <div class="metric-card">
+      <div class="lbl">Avg Monthly Income</div>
+      <div class="sub" id="mIncSub"></div>
+      <div class="val c-green" id="mAvgInc">$0.00</div>
+    </div>
+    <div class="metric-card">
+      <div class="lbl">Avg Monthly Spending</div>
+      <div class="sub" id="mExpSub"></div>
+      <div class="val c-red" id="mAvgExp">$0.00</div>
+    </div>
+  </div>
 
   <!-- CSV Import -->
   <div class="import-panel">
@@ -430,22 +458,6 @@
         </div>
         <p class="import-note">Imported expenses are assigned to "Miscellaneous" — you can change categories after import.</p>
       </div>
-    </div>
-  </div>
-
-  <!-- Summary -->
-  <div class="summary-row">
-    <div class="stat-card">
-      <div class="lbl">Total Income</div>
-      <div class="val c-green" id="sumIncome">$0.00</div>
-    </div>
-    <div class="stat-card">
-      <div class="lbl">Total Expenses</div>
-      <div class="val c-red" id="sumExpenses">$0.00</div>
-    </div>
-    <div class="stat-card">
-      <div class="lbl">Net Profit</div>
-      <div class="val c-blue" id="sumNet">$0.00</div>
     </div>
   </div>
 
@@ -714,21 +726,36 @@
   // ── Render ──
   function render() {
     const txs      = yearTx();
-    const income   = txs.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
-    const expenses = txs.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
-    const returns  = txs.filter(t => t.type === 'return').reduce((s,t) => s + t.amount, 0);
-    const net      = income - expenses + returns;
-
-    document.getElementById('sumIncome').textContent   = fmt(income);
-    document.getElementById('sumExpenses').textContent = fmt(Math.max(0, expenses - returns));
-    const netEl = document.getElementById('sumNet');
-    netEl.textContent = (net < 0 ? '−' : '') + fmt(net);
-    netEl.className   = 'val ' + (net >= 0 ? 'c-blue' : 'c-red');
-
+    renderMetrics(txs);
     renderBarChart(txs);
     renderCatTable(txs);
     renderFilterChips();
     renderTxList(txs);
+  }
+
+  function renderMetrics(txs) {
+    const income   = txs.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
+    const expenses = txs.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+    const returns  = txs.filter(t => t.type === 'return').reduce((s,t) => s + t.amount, 0);
+    const netExp   = Math.max(0, expenses - returns);
+    const net      = income - expenses + returns;
+
+    const now          = new Date();
+    const isCurrentYr  = viewYear === now.getFullYear();
+    const monthsElapsed = isCurrentYr ? now.getMonth() + 1 : 12;
+    const subLabel     = isCurrentYr
+      ? `Jan – ${MO_SHORT[now.getMonth()]} avg`
+      : '12-month avg';
+
+    document.getElementById('mIncome').textContent   = fmt(income);
+    document.getElementById('mExpenses').textContent = fmt(netExp);
+    const netEl = document.getElementById('mNet');
+    netEl.textContent = (net < 0 ? '−' : '') + fmt(net);
+    netEl.className   = 'val ' + (net >= 0 ? 'c-blue' : 'c-red');
+    document.getElementById('mAvgInc').textContent   = fmt(income / monthsElapsed);
+    document.getElementById('mAvgExp').textContent   = fmt(netExp / monthsElapsed);
+    document.getElementById('mIncSub').textContent   = subLabel;
+    document.getElementById('mExpSub').textContent   = subLabel;
   }
 
   function renderBarChart(txs) {
