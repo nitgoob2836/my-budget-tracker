@@ -251,6 +251,12 @@
       font-size: 1rem; padding: 1px 4px; border-radius: 4px; flex-shrink: 0; line-height: 1;
     }
     .csv-rm:hover { color: var(--red); background: #fef2f2; }
+    .undo-btn {
+      padding: 0.6rem 1rem; background: none; color: var(--muted);
+      border: 1.5px solid var(--border); border-radius: 9px;
+      font-size: 0.86rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .undo-btn:hover { border-color: var(--dark); color: var(--dark); }
     .import-btn { padding: 0.6rem 1.3rem; background: var(--dark); color: white; border: none; border-radius: 9px; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
     .import-btn:hover { background: #2e2e50; }
     .import-note { font-size: 0.76rem; color: var(--light); margin-top: 0.5rem; }
@@ -377,8 +383,10 @@
           </div>
         </div>
         <div id="previewArea"></div>
-        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:0.5rem">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem">
           <button class="import-btn" onclick="doImport()">Import Transactions</button>
+          <button id="undoBtn" class="undo-btn" onclick="undoRemove()" style="display:none">↩ Undo</button>
+          <button class="undo-btn" onclick="resetCsvImport()">✕ Cancel</button>
           <span id="importCount" style="font-size:0.83rem;color:var(--muted)"></span>
         </div>
         <p class="import-note">Imported expenses are assigned to "Miscellaneous" — you can change categories after import.</p>
@@ -873,7 +881,7 @@
   };
 
   // ── CSV Import ──
-  let csvRows = [], csvHeaders = [], csvPreviewRows = [], pendingImportRows = [];
+  let csvRows = [], csvHeaders = [], csvPreviewRows = [], pendingImportRows = [], removedStack = [];
 
   function toggleImport() {
     const body = document.getElementById('importBody');
@@ -942,7 +950,7 @@
     document.getElementById('mapArea').style.display = 'none';
     document.getElementById('csvNewRow').style.display = 'none';
     document.getElementById('csvFile').value = '';
-    csvRows = []; csvHeaders = []; csvPreviewRows = [];
+    csvRows = []; csvHeaders = []; csvPreviewRows = []; removedStack = [];
   }
 
   function renderCsvMapping() {
@@ -1011,6 +1019,8 @@
 
   function renderCsvPreview() {
     const rows = csvPreviewRows;
+    const undoBtn = document.getElementById('undoBtn');
+    if (undoBtn) undoBtn.style.display = removedStack.length > 0 ? '' : 'none';
     document.getElementById('importCount').textContent =
       `${rows.length} transaction${rows.length !== 1 ? 's' : ''} ready to import`;
     if (!rows.length) {
@@ -1038,11 +1048,20 @@
     if (from) rows = rows.filter(r => r.ds >= from);
     if (to)   rows = rows.filter(r => r.ds <= to);
     csvPreviewRows = rows;
+    removedStack = [];
     renderCsvPreview();
   }
 
   function removeCsvRow(i) {
+    removedStack.push({ row: csvPreviewRows[i], index: i });
     csvPreviewRows.splice(i, 1);
+    renderCsvPreview();
+  }
+
+  function undoRemove() {
+    if (!removedStack.length) return;
+    const { row, index } = removedStack.pop();
+    csvPreviewRows.splice(index, 0, row);
     renderCsvPreview();
   }
 
