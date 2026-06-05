@@ -404,9 +404,9 @@
   <div class="import-panel">
     <button class="import-toggle" onclick="toggleImport()">
       <span>⬆ Import Bank CSV</span>
-      <span id="importChevron" style="font-size:0.7rem;transition:transform 0.2s">▼</span>
+      <span id="importChevron" style="font-size:0.7rem;transition:transform 0.2s;transform:rotate(180deg)">▼</span>
     </button>
-    <div class="import-body" id="importBody" style="display:none">
+    <div class="import-body" id="importBody">
       <div id="dropZone" class="drop-zone"
            onclick="document.getElementById('csvFile').click()"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -469,6 +469,13 @@
     </div>
   </div>
 
+  <!-- Shared month filter -->
+  <div class="panel" style="margin-bottom:1.25rem">
+    <div class="panel-inner" style="padding:0.75rem 1.5rem">
+      <div class="month-tabs" id="sharedMonthTabs" style="margin-bottom:0"></div>
+    </div>
+  </div>
+
   <!-- Category table -->
   <div class="middle-row">
     <div class="panel">
@@ -495,7 +502,7 @@
             <button id="vByMonth" class="active" onclick="setGroupBy('month')">By Month</button>
             <button id="vByAcct" onclick="setGroupBy('account')">By Account</button>
           </div>
-          <div class="month-tabs" id="monthTabs" style="margin-bottom:0"></div>
+          <div id="monthTabs" style="display:flex;flex-wrap:wrap;gap:0.35rem"></div>
         </div>
         <div class="select-bar">
           <label>
@@ -726,9 +733,11 @@
   // ── Render ──
   function render() {
     const txs      = yearTx();
+    const filtered = filterMonth === -1 ? txs : txs.filter(t => new Date(t.date+'T00:00:00').getMonth() === filterMonth);
     renderMetrics(txs);
     renderBarChart(txs);
-    renderCatTable(txs);
+    renderSharedMonthFilter();
+    renderCatTable(filtered);
     renderFilterChips();
     renderTxList(txs);
   }
@@ -808,11 +817,28 @@
     const total = rows.reduce((s, r) => s + r.a, 0);
     const tbody = document.getElementById('catBody');
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="2" class="empty-note">No expenses this year</td></tr>'; return;
+      const period = filterMonth >= 0 ? `in ${MO_FULL[filterMonth]}` : 'this year';
+      tbody.innerHTML = `<tr><td colspan="2" class="empty-note">No expenses ${period}</td></tr>`; return;
     }
     tbody.innerHTML = rows.map(r =>
       `<tr><td>${esc(r.c)}</td><td class="num c-red">${fmt(r.a)}</td></tr>`
     ).join('') + `<tr class="tot"><td>Total</td><td class="num c-red">${fmt(total)}</td></tr>`;
+  }
+
+  function renderSharedMonthFilter() {
+    document.getElementById('sharedMonthTabs').innerHTML =
+      `<button class="mtab ${filterMonth===-1?'active':''}" onclick="setSharedFilter(-1)">All</button>` +
+      MO_SHORT.map((m,i) => `<button class="mtab ${filterMonth===i?'active':''}" onclick="setSharedFilter(${i})">${m}</button>`).join('');
+  }
+
+  function setSharedFilter(m) {
+    filterMonth = m;
+    const txs      = yearTx();
+    const filtered = m === -1 ? txs : txs.filter(t => new Date(t.date+'T00:00:00').getMonth() === m);
+    renderSharedMonthFilter();
+    renderCatTable(filtered);
+    renderFilterChips();
+    renderTxList(txs);
   }
 
   function renderFilterChips() {
@@ -826,13 +852,11 @@
           `<button class="mtab ${filterAccount===a?'active':''}" onclick="setAccountFilter(${i})">${esc(a)}</button>`
         ).join('');
     } else {
-      document.getElementById('monthTabs').innerHTML =
-        `<button class="mtab ${filterMonth===-1?'active':''}" onclick="setFilter(-1)">All</button>` +
-        MO_SHORT.map((m,i) => `<button class="mtab ${filterMonth===i?'active':''}" onclick="setFilter(${i})">${m}</button>`).join('');
+      document.getElementById('monthTabs').innerHTML = '';
     }
   }
 
-  function setFilter(m) { filterMonth = m; renderFilterChips(); renderTxList(yearTx()); }
+  function setFilter(m) { setSharedFilter(m); }
 
   function setAccountFilter(i) {
     filterAccount = i === null ? null : chipAccounts[i];
