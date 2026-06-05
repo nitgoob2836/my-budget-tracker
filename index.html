@@ -210,6 +210,19 @@
       font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
     }
     .del-sel-btn:hover { background: #fee2e2; }
+    .assign-cat-btn {
+      padding: 0.25rem 0.7rem; background: #eff6ff; color: var(--blue);
+      border: 1.5px solid #bfdbfe; border-radius: 6px;
+      font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .assign-cat-btn:hover { background: #dbeafe; }
+    .cat-btn-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem; }
+    .cat-pill {
+      padding: 0.32rem 0.8rem; border: 1.5px solid var(--border); border-radius: 20px;
+      font-size: 0.82rem; font-weight: 500; cursor: pointer; background: white; color: var(--text);
+      transition: all 0.12s;
+    }
+    .cat-pill:hover { background: var(--dark); color: white; border-color: var(--dark); }
     #txList { max-height: 500px; overflow-y: auto; }
     .empty-note { text-align: center; color: var(--light); padding: 2.5rem 0; font-size: 0.85rem; }
 
@@ -503,7 +516,10 @@
             <input type="checkbox" id="selectAllCb" class="tx-cb" onchange="toggleSelectAll()">
             Select all
           </label>
-          <button id="delSelBtn" class="del-sel-btn" onclick="deleteSelected()" style="display:none">Delete selected</button>
+          <div style="display:flex;gap:0.5rem">
+            <button id="assignCatBtn" class="assign-cat-btn" onclick="openAssignCatModal()" style="display:none">Assign Category</button>
+            <button id="delSelBtn" class="del-sel-btn" onclick="deleteSelected()" style="display:none">Delete selected</button>
+          </div>
         </div>
         <div id="txList"></div>
       </div>
@@ -666,6 +682,8 @@
       btn.style.display = checked.length > 0 ? '' : 'none';
       btn.textContent   = `Delete ${checked.length} selected`;
     }
+    const ab = document.getElementById('assignCatBtn');
+    if (ab) ab.style.display = checked.length > 0 ? '' : 'none';
     document.querySelectorAll('.tx-cb-item').forEach(el => {
       el.checked = selectedIds.has(+el.dataset.id);
     });
@@ -1264,6 +1282,33 @@
     render();
   }
 
+  // ── Assign category modal ──
+  let assignCatList = [];
+
+  function openAssignCatModal() {
+    const exp = getExpCats();
+    const inc = getIncCats();
+    assignCatList = [...exp, ...inc];
+    document.getElementById('assignExpCats').innerHTML =
+      exp.map((c, i) => `<button class="cat-pill" onclick="assignCatToSelected(${i})">${esc(c)}</button>`).join('');
+    document.getElementById('assignIncCats').innerHTML =
+      inc.map((c, i) => `<button class="cat-pill" onclick="assignCatToSelected(${exp.length + i})">${esc(c)}</button>`).join('');
+    document.getElementById('assignCatOverlay').style.display = 'flex';
+  }
+
+  function assignCatToSelected(idx) {
+    const cat = assignCatList[idx];
+    if (!cat) return;
+    save(load().map(t => selectedIds.has(t.id) ? { ...t, category: cat } : t));
+    selectedIds.clear();
+    closeAssignCatModal();
+    render();
+  }
+
+  function closeAssignCatModal() {
+    document.getElementById('assignCatOverlay').style.display = 'none';
+  }
+
   // ── Category modal ──
   function openCatModal() {
     const mkRows = cats => cats.map(c => `
@@ -1307,7 +1352,7 @@
 
   function closeCatModal() { document.getElementById('catOverlay').style.display = 'none'; }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDupModal(); closeCatModal(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDupModal(); closeCatModal(); closeAssignCatModal(); } });
 
   // ── Init ──
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
@@ -1315,6 +1360,21 @@
   setTxType('expense');
   render();
 </script>
+<!-- Assign category modal -->
+<div id="assignCatOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAssignCatModal()">
+  <div class="modal" style="width:min(480px,92vw)">
+    <div class="modal-header">
+      <h3>Assign Category</h3>
+      <button class="modal-close" onclick="closeAssignCatModal()">×</button>
+    </div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:1rem">Choose a category to apply to all selected transactions.</p>
+    <p class="cat-section-lbl">Expense &amp; Return</p>
+    <div class="cat-btn-grid" id="assignExpCats"></div>
+    <p class="cat-section-lbl">Income</p>
+    <div class="cat-btn-grid" id="assignIncCats"></div>
+  </div>
+</div>
+
 <!-- Category manage modal -->
 <div id="catOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeCatModal()">
   <div class="modal" style="width:min(500px,92vw)">
