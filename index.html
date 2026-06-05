@@ -158,6 +158,18 @@
       cursor: pointer; font-size: 1rem; padding: 2px 5px; border-radius: 4px; flex-shrink: 0;
     }
     .tx-del:hover { color: var(--red); background: #fef2f2; }
+    .tx-cb { width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; accent-color: var(--dark); }
+    .select-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.35rem 0; margin-bottom: 0.4rem; border-bottom: 1px solid #f0f0f0;
+    }
+    .select-bar label { display: flex; align-items: center; gap: 0.45rem; cursor: pointer; font-size: 0.8rem; color: var(--muted); user-select: none; }
+    .del-sel-btn {
+      padding: 0.25rem 0.7rem; background: #fef2f2; color: var(--red);
+      border: 1.5px solid #fecaca; border-radius: 6px;
+      font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .del-sel-btn:hover { background: #fee2e2; }
     .empty-note { text-align: center; color: var(--light); padding: 2.5rem 0; font-size: 0.85rem; }
 
     /* ── Add transaction form ── */
@@ -423,6 +435,13 @@
           </div>
           <div class="month-tabs" id="monthTabs" style="margin-bottom:0"></div>
         </div>
+        <div class="select-bar">
+          <label>
+            <input type="checkbox" id="selectAllCb" class="tx-cb" onchange="toggleSelectAll()">
+            Select all
+          </label>
+          <button id="delSelBtn" class="del-sel-btn" onclick="deleteSelected()" style="display:none">Delete selected</button>
+        </div>
         <div id="txList"></div>
       </div>
     </div>
@@ -561,6 +580,50 @@
   ];
 
   const INC_CATS = ['CPS','Quinnox','Venmo/Zelle','Store Refunds','SOFI Interest'];
+
+  let selectedIds = new Set();
+
+  function getVisibleIds() {
+    return [...document.querySelectorAll('.tx-cb-item')].map(el => +el.dataset.id);
+  }
+  function updateSelectBar() {
+    const visible = getVisibleIds();
+    const checked = visible.filter(id => selectedIds.has(id));
+    const cb  = document.getElementById('selectAllCb');
+    const btn = document.getElementById('delSelBtn');
+    if (cb) {
+      cb.checked       = visible.length > 0 && checked.length === visible.length;
+      cb.indeterminate = checked.length > 0 && checked.length < visible.length;
+    }
+    if (btn) {
+      btn.style.display = checked.length > 0 ? '' : 'none';
+      btn.textContent   = `Delete ${checked.length} selected`;
+    }
+    document.querySelectorAll('.tx-cb-item').forEach(el => {
+      el.checked = selectedIds.has(+el.dataset.id);
+    });
+  }
+  function toggleSelect(id) {
+    if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+    updateSelectBar();
+  }
+  function toggleSelectAll() {
+    const visible  = getVisibleIds();
+    const allOn    = visible.every(id => selectedIds.has(id));
+    if (allOn) visible.forEach(id => selectedIds.delete(id));
+    else       visible.forEach(id => selectedIds.add(id));
+    updateSelectBar();
+    // refresh checkboxes in DOM
+    document.querySelectorAll('.tx-cb-item').forEach(el => {
+      el.checked = selectedIds.has(+el.dataset.id);
+    });
+  }
+  function deleteSelected() {
+    if (!selectedIds.size) return;
+    save(load().filter(t => !selectedIds.has(t.id)));
+    selectedIds.clear();
+    render();
+  }
 
   let viewYear      = new Date().getFullYear();
   let txType        = 'expense';
@@ -713,6 +776,7 @@
     const clr  = t.type === 'income' ? 'c-green' : 'c-red';
     const dot  = t.type === 'income' ? '#10b981' : '#ef4444';
     return `<div class="tx-item">
+      <input type="checkbox" class="tx-cb tx-cb-item" data-id="${t.id}" ${selectedIds.has(t.id)?'checked':''} onchange="toggleSelect(${t.id})">
       <div class="tx-dot" style="background:${dot}"></div>
       <div class="tx-info">
         <div class="desc">${esc(t.description)}</div>
@@ -777,6 +841,7 @@
       }
       container.innerHTML = [...txs].sort((a,b) => new Date(b.date)-new Date(a.date)).map(t => txRow(t, true)).join('');
     }
+    updateSelectBar();
   }
 
   // ── Year nav ──
