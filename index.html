@@ -210,6 +210,22 @@
     .import-btn { padding: 0.6rem 1.3rem; background: var(--dark); color: white; border: none; border-radius: 9px; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
     .import-btn:hover { background: #2e2e50; }
     .import-note { font-size: 0.76rem; color: var(--light); margin-top: 0.5rem; }
+    .acct-step { margin-top: 1rem; }
+    .acct-step .step-label { font-size: 0.87rem; font-weight: 600; color: var(--text); margin-bottom: 0.75rem; }
+    .new-acct-row {
+      display: none; align-items: center; gap: 0.5rem; margin-top: 0.4rem;
+    }
+    .new-acct-row input {
+      flex: 1; padding: 0.48rem 0.65rem;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 0.84rem; outline: none; color: var(--text);
+    }
+    .new-acct-row input:focus { border-color: var(--blue); }
+    .new-acct-row button {
+      padding: 0.48rem 0.9rem; background: var(--dark); color: white;
+      border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+    }
 
     /* ── Edit button ── */
     .tx-edit {
@@ -283,6 +299,27 @@
         <p>Drag &amp; drop your bank CSV here, or <span class="browse-btn">browse</span></p>
         <p style="margin-top:0.3rem;font-size:0.76rem;color:#bbb">Supports Chase, Bank of America, Wells Fargo, and most bank exports</p>
       </div>
+
+      <!-- Step 1: pick account -->
+      <div id="acctStep" class="acct-step" style="display:none">
+        <p class="step-label">Which account does this CSV belong to?</p>
+        <div class="form-group">
+          <select id="csvAcctSel" onchange="handleNewAcct('csvAcctSel','csvNewRow','csvNewInput')"
+                  style="width:100%;padding:0.52rem 0.7rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.86rem;outline:none;background:white;color:var(--text)"></select>
+          <div class="new-acct-row" id="csvNewRow">
+            <input id="csvNewInput" type="text" placeholder="New account name…"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();commitNewAcct('csvAcctSel','csvNewRow','csvNewInput')}">
+            <button type="button" onclick="commitNewAcct('csvAcctSel','csvNewRow','csvNewInput')">Add</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:0.75rem;margin-top:0.25rem">
+          <button class="import-btn" onclick="continueToMapping()">Continue →</button>
+          <button type="button" onclick="resetCsvImport()"
+                  style="padding:0.6rem 1rem;background:none;border:1.5px solid var(--border);border-radius:9px;font-size:0.86rem;font-weight:600;color:var(--muted);cursor:pointer">← Back</button>
+        </div>
+      </div>
+
+      <!-- Step 2: map columns -->
       <div id="mapArea" style="display:none">
         <div class="map-grid" id="mapGrid"></div>
         <div id="previewArea"></div>
@@ -358,7 +395,12 @@
         <form id="txForm">
           <div class="form-group">
             <label>Account</label>
-            <select id="fAcct"></select>
+            <select id="fAcct" onchange="handleNewAcct('fAcct','fNewRow','fNewInput')"></select>
+            <div class="new-acct-row" id="fNewRow">
+              <input id="fNewInput" type="text" placeholder="New account name…"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();commitNewAcct('fAcct','fNewRow','fNewInput')}">
+              <button type="button" onclick="commitNewAcct('fAcct','fNewRow','fNewInput')">Add</button>
+            </div>
           </div>
           <div class="form-group">
             <label>Category</label>
@@ -397,7 +439,12 @@
     </div>
     <div class="form-group">
       <label>Account</label>
-      <select id="eAcct"></select>
+      <select id="eAcct" onchange="handleNewAcct('eAcct','eNewRow','eNewInput')"></select>
+      <div class="new-acct-row" id="eNewRow">
+        <input id="eNewInput" type="text" placeholder="New account name…"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();commitNewAcct('eAcct','eNewRow','eNewInput')}">
+        <button type="button" onclick="commitNewAcct('eAcct','eNewRow','eNewInput')">Add</button>
+      </div>
     </div>
     <div class="form-group">
       <label>Category</label>
@@ -428,9 +475,42 @@
   const MO_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   const ACCOUNTS = [
-    'J - Checking', 'J - Savings', 'J - Credit Card',
-    'M - Checking', 'M - Savings', 'M - Credit Card'
+    'J&M Chase Checking',
+    'J Chase Credit Cards', 'J Sofi', 'J Citi', 'J Amazon',
+    'M Chase Checking', 'M Sofi', 'M Capital One', 'M Discover', 'M Chase Credit'
   ];
+
+  const ACCTS_KEY = 'budget_accounts';
+  function getAccounts() {
+    const custom = JSON.parse(localStorage.getItem(ACCTS_KEY) || '[]');
+    return [...ACCOUNTS, ...custom.filter(a => !ACCOUNTS.includes(a))];
+  }
+  function addCustomAccount(name) {
+    const custom = JSON.parse(localStorage.getItem(ACCTS_KEY) || '[]');
+    if (!custom.includes(name) && !ACCOUNTS.includes(name)) {
+      custom.push(name);
+      localStorage.setItem(ACCTS_KEY, JSON.stringify(custom));
+    }
+  }
+  function acctOpts(sel) {
+    return getAccounts().map(a =>
+      `<option value="${esc(a)}"${a === sel ? ' selected' : ''}>${esc(a)}</option>`
+    ).join('') + `<option value="__add__">＋ Add new account…</option>`;
+  }
+  function handleNewAcct(selId, rowId, inputId) {
+    const show = document.getElementById(selId).value === '__add__';
+    document.getElementById(rowId).style.display = show ? 'flex' : 'none';
+    if (show) document.getElementById(inputId).focus();
+  }
+  function commitNewAcct(selId, rowId, inputId) {
+    const name = document.getElementById(inputId).value.trim();
+    if (!name) return;
+    addCustomAccount(name);
+    document.getElementById(selId).innerHTML = acctOpts(name);
+    document.getElementById(selId).value = name;
+    document.getElementById(rowId).style.display = 'none';
+    document.getElementById(inputId).value = '';
+  }
 
   const EXP_CATS = [
     'Groceries','Gas','Home Repair','Dining','Self-Care','Fitness',
@@ -588,7 +668,7 @@
       }
       const sorted = [...txs].sort((a,b) => new Date(b.date)-new Date(a.date));
       const byAcct = {};
-      ACCOUNTS.forEach(a => { byAcct[a] = []; });
+      getAccounts().forEach(a => { byAcct[a] = []; });
       sorted.forEach(t => {
         const k = t.account || 'Other';
         if (!byAcct[k]) byAcct[k] = [];
@@ -626,7 +706,7 @@
   document.getElementById('nextYear').onclick = () => { viewYear++; document.getElementById('yearLabel').textContent = viewYear; render(); };
 
   // ── Form ──
-  document.getElementById('fAcct').innerHTML = ACCOUNTS.map(a => `<option value="${a}">${a}</option>`).join('');
+  document.getElementById('fAcct').innerHTML = acctOpts(getAccounts()[0]);
 
   document.getElementById('txForm').onsubmit = e => {
     e.preventDefault();
@@ -699,9 +779,27 @@
       if (rows.length < 2) { alert('CSV appears empty or invalid.'); return; }
       csvHeaders = rows[0];
       csvRows = rows.slice(1).filter(r => r.some(c => c));
-      renderCsvMapping();
+      document.getElementById('dropZone').style.display = 'none';
+      document.getElementById('acctStep').style.display = '';
+      document.getElementById('csvAcctSel').innerHTML = acctOpts(getAccounts()[0]);
+      document.getElementById('csvNewRow').style.display = 'none';
     };
     r.readAsText(file);
+  }
+
+  function continueToMapping() {
+    if (document.getElementById('csvAcctSel').value === '__add__') return;
+    document.getElementById('acctStep').style.display = 'none';
+    renderCsvMapping();
+  }
+
+  function resetCsvImport() {
+    document.getElementById('dropZone').style.display = '';
+    document.getElementById('acctStep').style.display = 'none';
+    document.getElementById('mapArea').style.display = 'none';
+    document.getElementById('csvNewRow').style.display = 'none';
+    document.getElementById('csvFile').value = '';
+    csvRows = []; csvHeaders = [];
   }
 
   function renderCsvMapping() {
@@ -711,8 +809,7 @@
     const di = find('date'), xi = find('desc','memo','narr','payee','name');
     const ai = find('amount'), dbi = find('debit','withdrawal'), cri = find('credit','deposit');
     const hasDC = dbi >= 0 && cri >= 0;
-    const opts  = csvHeaders.map((h,i) => `<option value="${i}">${h||'Col '+(i+1)}</option>`).join('');
-    const aOpts = ACCOUNTS.map(a => `<option value="${a}">${a}</option>`).join('');
+    const opts = csvHeaders.map((h,i) => `<option value="${i}">${h||'Col '+(i+1)}</option>`).join('');
 
     document.getElementById('mapGrid').innerHTML = `
       <div class="map-group"><label>Date Column</label><select id="mDate" onchange="updateCsvPrev()">${opts}</select></div>
@@ -725,8 +822,7 @@
       </div>
       <div class="map-group" id="mAmtW"><label>Amount Column</label><select id="mAmt" onchange="updateCsvPrev()">${opts}</select></div>
       <div class="map-group" id="mDebW" style="display:none"><label>Debit Column</label><select id="mDeb" onchange="updateCsvPrev()">${opts}</select></div>
-      <div class="map-group" id="mCreW" style="display:none"><label>Credit Column</label><select id="mCre" onchange="updateCsvPrev()">${opts}</select></div>
-      <div class="map-group"><label>Assign to Account</label><select id="mAcct">${aOpts}</select></div>`;
+      <div class="map-group" id="mCreW" style="display:none"><label>Credit Column</label><select id="mCre" onchange="updateCsvPrev()">${opts}</select></div>`;
 
     if (di  >= 0) document.getElementById('mDate').value = di;
     if (xi  >= 0) document.getElementById('mDesc').value = xi;
@@ -788,7 +884,7 @@
   function doImport() {
     const rows = buildImportRows();
     if (!rows.length) { alert('No valid transactions to import.'); return; }
-    const acct = document.getElementById('mAcct').value;
+    const acct = document.getElementById('csvAcctSel').value;
     const all  = load();
     rows.forEach((r,i) => all.push({
       id: Date.now()+i, description: r.desc, amount: r.amount,
@@ -796,9 +892,7 @@
       account: acct, date: r.ds
     }));
     save(all); render();
-    document.getElementById('csvFile').value = '';
-    document.getElementById('mapArea').style.display = 'none';
-    csvRows=[]; csvHeaders=[];
+    resetCsvImport();
     alert(`Imported ${rows.length} transaction${rows.length!==1?'s':''} successfully.`);
   }
 
@@ -810,9 +904,9 @@
     const tx = load().find(t => t.id === id);
     if (!tx) return;
     editingId = id;
-    document.getElementById('eAcct').innerHTML = ACCOUNTS.map(a => `<option value="${a}">${a}</option>`).join('');
+    document.getElementById('eNewRow').style.display = 'none';
     setEditType(tx.type);
-    document.getElementById('eAcct').value = tx.account || ACCOUNTS[0];
+    document.getElementById('eAcct').innerHTML = acctOpts(tx.account || getAccounts()[0]);
     document.getElementById('eCat').value  = tx.category;
     document.getElementById('eDesc').value = tx.description;
     document.getElementById('eAmt').value  = tx.amount;
