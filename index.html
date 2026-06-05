@@ -562,11 +562,13 @@
 
   const INC_CATS = ['CPS','Quinnox','Venmo/Zelle','Store Refunds','SOFI Interest'];
 
-  let viewYear    = new Date().getFullYear();
-  let txType      = 'expense';
-  let filterMonth = -1;
-  let groupBy     = 'month';
-  let barChart    = null;
+  let viewYear      = new Date().getFullYear();
+  let txType        = 'expense';
+  let filterMonth   = -1;
+  let filterAccount = null;
+  let chipAccounts  = [];
+  let groupBy       = 'month';
+  let barChart      = null;
 
   const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
   const save = arr => localStorage.setItem(KEY, JSON.stringify(arr));
@@ -607,7 +609,7 @@
 
     renderBarChart(txs);
     renderCatTable(txs);
-    renderMonthTabs();
+    renderFilterChips();
     renderTxList(txs);
   }
 
@@ -663,18 +665,37 @@
     ).join('') + `<tr class="tot"><td>Total</td><td class="num c-red">${fmt(total)}</td></tr>`;
   }
 
-  function renderMonthTabs() {
-    document.getElementById('monthTabs').innerHTML =
-      `<button class="mtab ${filterMonth===-1?'active':''}" onclick="setFilter(-1)">All</button>` +
-      MO_SHORT.map((m,i) => `<button class="mtab ${filterMonth===i?'active':''}" onclick="setFilter(${i})">${m}</button>`).join('');
+  function renderFilterChips() {
+    if (groupBy === 'account') {
+      const used = new Set(yearTx().map(t => t.account || 'Other'));
+      chipAccounts = getAccounts().filter(a => used.has(a));
+      used.forEach(a => { if (!chipAccounts.includes(a)) chipAccounts.push(a); });
+      document.getElementById('monthTabs').innerHTML =
+        `<button class="mtab ${filterAccount===null?'active':''}" onclick="setAccountFilter(null)">All</button>` +
+        chipAccounts.map((a, i) =>
+          `<button class="mtab ${filterAccount===a?'active':''}" onclick="setAccountFilter(${i})">${esc(a)}</button>`
+        ).join('');
+    } else {
+      document.getElementById('monthTabs').innerHTML =
+        `<button class="mtab ${filterMonth===-1?'active':''}" onclick="setFilter(-1)">All</button>` +
+        MO_SHORT.map((m,i) => `<button class="mtab ${filterMonth===i?'active':''}" onclick="setFilter(${i})">${m}</button>`).join('');
+    }
   }
 
-  function setFilter(m) { filterMonth = m; renderMonthTabs(); renderTxList(yearTx()); }
+  function setFilter(m) { filterMonth = m; renderFilterChips(); renderTxList(yearTx()); }
+
+  function setAccountFilter(i) {
+    filterAccount = i === null ? null : chipAccounts[i];
+    renderFilterChips();
+    renderTxList(yearTx());
+  }
 
   function setGroupBy(mode) {
     groupBy = mode;
+    filterAccount = null;
     document.getElementById('vByMonth').className = mode === 'month'   ? 'active' : '';
     document.getElementById('vByAcct').className  = mode === 'account' ? 'active' : '';
+    renderFilterChips();
     renderTxList(yearTx());
   }
 
@@ -710,14 +731,17 @@
   }
 
   function renderTxList(allTxs) {
-    const txs = filterMonth === -1
+    let txs = filterMonth === -1
       ? allTxs
       : allTxs.filter(t => new Date(t.date+'T00:00:00').getMonth() === filterMonth);
+    if (groupBy === 'account' && filterAccount !== null) {
+      txs = txs.filter(t => (t.account || 'Other') === filterAccount);
+    }
     const container = document.getElementById('txList');
 
     if (groupBy === 'account') {
       if (!txs.length) {
-        container.innerHTML = `<p class="empty-note">No transactions${filterMonth >= 0 ? ' in ' + MO_FULL[filterMonth] : ' this year'}</p>`;
+        container.innerHTML = `<p class="empty-note">No transactions${filterAccount ? ' for ' + filterAccount : ' this year'}</p>`;
         return;
       }
       const sorted = [...txs].sort((a,b) => new Date(b.date)-new Date(a.date));
