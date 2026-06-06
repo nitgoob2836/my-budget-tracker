@@ -114,6 +114,14 @@
       font-weight: 700; color: var(--text);
       border-top: 1.5px solid var(--border); border-bottom: none;
     }
+    /* ── Scrollable category table ── */
+    .cat-table thead, .cat-table tbody, .cat-table tfoot { display: block; width: 100%; }
+    .cat-table thead tr, .cat-table tbody tr, .cat-table tfoot tr {
+      display: table; width: 100%; table-layout: fixed;
+    }
+    .cat-table tbody { max-height: 160px; overflow-y: auto; }
+    .cat-table th:first-child, .cat-table td:first-child { width: 68%; }
+    .cat-table th:last-child,  .cat-table td:last-child  { width: 32%; }
 
     /* ── Bottom row ── */
     .bottom-row {
@@ -497,9 +505,10 @@
           <h2 style="margin-bottom:0">Category</h2>
           <button class="cat-manage-btn" onclick="openCatModal()">Add / Edit</button>
         </div>
-        <table class="data-table">
+        <table class="data-table cat-table">
           <thead><tr><th>Category</th><th class="num">Amount</th></tr></thead>
           <tbody id="catBody"></tbody>
+          <tfoot id="catTotal"></tfoot>
         </table>
       </div>
     </div>
@@ -830,11 +839,15 @@
     const tbody = document.getElementById('catBody');
     if (!rows.length) {
       const period = filterMonth >= 0 ? `in ${MO_FULL[filterMonth]}` : 'this year';
-      tbody.innerHTML = `<tr><td colspan="2" class="empty-note">No expenses ${period}</td></tr>`; return;
+      tbody.innerHTML = `<tr><td colspan="2" class="empty-note">No expenses ${period}</td></tr>`;
+      document.getElementById('catTotal').innerHTML = '';
+      return;
     }
     tbody.innerHTML = rows.map(r =>
       `<tr><td>${esc(r.c)}</td><td class="num c-red">${fmt(r.a)}</td></tr>`
-    ).join('') + `<tr class="tot"><td>Total</td><td class="num c-red">${fmt(total)}</td></tr>`;
+    ).join('');
+    document.getElementById('catTotal').innerHTML =
+      `<tr class="tot"><td>Total</td><td class="num c-red">${fmt(total)}</td></tr>`;
   }
 
   function renderSharedMonthFilter() {
