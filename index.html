@@ -1268,7 +1268,7 @@
     const all  = load();
     rows.forEach((r, i) => all.push({
       id: Date.now() + i, description: r.desc, amount: r.amount,
-      type: r.type, category: r.type === 'income' ? 'Venmo/Zelle' : 'Unassigned',
+      type: r.type, category: 'Unassigned',
       account: acct, date: r.ds, sign: r.sign || (r.type === 'income' ? '+' : '−')
     }));
     save(all); render();
