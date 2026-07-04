@@ -739,8 +739,9 @@
   let filterMonth   = -1;
   let filterAccount = null;
   let chipAccounts  = [];
-  let groupBy       = 'account';
-  let barChart      = null;
+  let groupBy          = 'account';
+  let filterUnassigned = false;
+  let barChart         = null;
 
   const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
   const save = arr => localStorage.setItem(KEY, JSON.stringify(arr));
@@ -883,14 +884,18 @@
 
   function renderFilterChips() {
     if (groupBy === 'account') {
-      const used = new Set(yearTx().map(t => t.account || 'Other'));
+      const txs = yearTx();
+      const used = new Set(txs.map(t => t.account || 'Other'));
       chipAccounts = getAccounts().filter(a => used.has(a));
       used.forEach(a => { if (!chipAccounts.includes(a)) chipAccounts.push(a); });
+      const monthFiltered = filterMonth === -1 ? txs : txs.filter(t => new Date(t.date+'T00:00:00').getMonth() === filterMonth);
+      const unassignedCount = monthFiltered.filter(t => t.category === 'Unassigned').length;
       document.getElementById('monthTabs').innerHTML =
         `<button class="mtab ${filterAccount===null?'active':''}" onclick="setAccountFilter(null)">All</button>` +
         chipAccounts.map((a, i) =>
           `<button class="mtab ${filterAccount===a?'active':''}" onclick="setAccountFilter(${i})">${esc(a)}</button>`
-        ).join('');
+        ).join('') +
+        `<button class="mtab ${filterUnassigned?'active':''}" onclick="toggleUnassignedFilter()" style="margin-left:auto">Unassigned${unassignedCount > 0 ? ` (${unassignedCount})` : ''}</button>`;
     } else {
       document.getElementById('monthTabs').innerHTML = '';
     }
@@ -900,6 +905,12 @@
 
   function setAccountFilter(i) {
     filterAccount = i === null ? null : chipAccounts[i];
+    renderFilterChips();
+    renderTxList(yearTx());
+  }
+
+  function toggleUnassignedFilter() {
+    filterUnassigned = !filterUnassigned;
     renderFilterChips();
     renderTxList(yearTx());
   }
@@ -961,6 +972,9 @@
       : allTxs.filter(t => new Date(t.date+'T00:00:00').getMonth() === filterMonth);
     if (groupBy === 'account' && filterAccount !== null) {
       txs = txs.filter(t => (t.account || 'Other') === filterAccount);
+    }
+    if (filterUnassigned) {
+      txs = txs.filter(t => t.category === 'Unassigned');
     }
     if (searchQuery) {
       txs = txs.filter(t =>
