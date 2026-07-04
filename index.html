@@ -498,30 +498,6 @@
     </div>
   </div>
 
-  <!-- Shared month filter -->
-  <div class="panel" style="margin-bottom:1.25rem">
-    <div class="panel-inner" style="padding:0.75rem 1.5rem">
-      <div class="month-tabs" id="sharedMonthTabs" style="margin-bottom:0"></div>
-    </div>
-  </div>
-
-  <!-- Category table -->
-  <div class="middle-row">
-    <div class="panel">
-      <div class="panel-inner">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-          <h2 style="margin-bottom:0">Category</h2>
-          <button class="cat-manage-btn" onclick="openCatModal()">Add / Edit</button>
-        </div>
-        <table class="data-table cat-table">
-          <thead><tr><th>Category</th><th class="num">Amount</th></tr></thead>
-          <tbody id="catBody"></tbody>
-          <tfoot id="catTotal"></tfoot>
-        </table>
-      </div>
-    </div>
-  </div>
-
   <!-- Transaction list + Add form -->
   <div class="bottom-row">
     <div class="panel">
@@ -578,6 +554,30 @@
           </div>
           <button type="submit" class="add-btn">Add Transaction</button>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shared month filter -->
+  <div class="panel" style="margin-bottom:1.25rem;margin-top:1.25rem">
+    <div class="panel-inner" style="padding:0.75rem 1.5rem">
+      <div class="month-tabs" id="sharedMonthTabs" style="margin-bottom:0"></div>
+    </div>
+  </div>
+
+  <!-- Category table -->
+  <div class="middle-row">
+    <div class="panel">
+      <div class="panel-inner">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <h2 style="margin-bottom:0">Category</h2>
+          <button class="cat-manage-btn" onclick="openCatModal()">Add / Edit</button>
+        </div>
+        <table class="data-table cat-table">
+          <thead><tr><th>Category</th><th class="num">Amount</th></tr></thead>
+          <tbody id="catBody"></tbody>
+          <tfoot id="catTotal"></tfoot>
+        </table>
       </div>
     </div>
   </div>
